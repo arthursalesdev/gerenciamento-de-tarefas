@@ -60,16 +60,16 @@ backend/
 
 ### Responsabilidades
 
-- **Schemas:** definem a estrutura das tabelas do banco.
-- **Controllers:** recebem as requisições HTTP e encaminham para a lógica da aplicação.
-- **DTOs:** controlam e validam os dados que entram e saem da aplicação.
-- **Mappers:** convertem dados entre diferentes formatos ou modelos.
-- **Errors:** definem erros personalizados da API.
-- **Middlewares:** executam verificações durante o fluxo das requisições, como autenticação e tratamento de erros.
-- **Repositories:** concentram as operações de acesso ao banco através do ORM.
-- **Routes:** definem os endpoints da API.
-- **Services:** concentram as regras de negócio e coordenam a lógica da aplicação.
-- **Migrations:** armazenam o histórico das alterações estruturais do banco.
+- **Schemas:** Definem a estrutura das tabelas do banco.
+- **Controllers:** Recebem as requisições HTTP e encaminham para a lógica da aplicação.
+- **DTOs:** Controlam e validam os dados que entram e saem da aplicação.
+- **Mappers:** Convertem dados entre diferentes formatos ou modelos.
+- **Errors:** Definem erros personalizados da API.
+- **Middlewares:** Executam verificações durante o fluxo das requisições, como autenticação e tratamento de erros.
+- **Repositories:** Concentram as operações de acesso ao banco através do ORM.
+- **Routes:** Definem os endpoints da API.
+- **Services:** Concentram as regras de negócio e coordenam a lógica da aplicação.
+- **Migrations:** Armazenam o histórico das alterações estruturais do banco.
 
 ## Funcionalidades
 
