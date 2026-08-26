@@ -15,7 +15,7 @@ O sistema permite autenticação de usuários e gerenciamento de tarefas, garant
 - JWT
 - bcrypt
 
-### Frontend
+### Frontend (Em Desenvolvimento)
 
 - React
 - Vite
