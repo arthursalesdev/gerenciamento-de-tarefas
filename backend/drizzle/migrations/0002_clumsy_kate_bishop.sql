@@ -1,0 +1,1 @@
+ALTER TABLE "tarefas" ADD COLUMN "excluido_em" timestamp;
