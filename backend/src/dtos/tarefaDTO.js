@@ -2,7 +2,7 @@ import AppError from "../errors/AppError.js";
 
 export class CriarTarefaDTO {
     constructor(dados) {
-        if (!dados.titulo || !dados.titulo.trim()) {
+        if (typeof dados.titulo !== "string" || !dados.titulo.trim()) {
             throw new AppError("Título é obrigatório", 400);
         }
 
@@ -25,6 +25,14 @@ export class CriarTarefaDTO {
         }
 
         this.titulo = dados.titulo.trim();
+        if (
+            dados.descricao !== undefined &&
+            dados.descricao !== null &&
+            typeof dados.descricao !== "string"
+        ) {
+            throw new AppError("Descrição deve ser um texto", 400);
+        }
+
         this.descricao = dados.descricao?.trim();
         this.prioridade = dados.prioridade;
 
@@ -69,7 +77,11 @@ export class AtualizarTarefaDTO {
         }
 
         if (dados.descricao !== undefined) {
-            this.descricao = dados.descricao?.trim();
+            if (dados.descricao !== null && typeof dados.descricao !== "string") {
+                throw new AppError("Descrição deve ser um texto", 400);
+            }
+
+            this.descricao = dados.descricao?.trim() ?? null;
         }
 
         if (dados.status !== undefined) {

@@ -307,3 +307,35 @@ Authorization: Bearer {{loginArthur.response.body.$.token}}
 # @name excluirTarefaNovamente
 DELETE {{baseUrl}}/equipes/3/tarefas/9
 Authorization: Bearer {{loginArthur.response.body.$.token}}
+
+
+### [VALIDACAO-01] Título numérico
+# Esperado: 400 Bad Request
+POST {{baseUrl}}/tarefas
+Authorization: Bearer {{loginArthur.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "titulo": 123
+}
+
+### [VALIDACAO-02] Descrição com tipo inválido
+# Esperado: 400 Bad Request
+POST {{baseUrl}}/tarefas
+Authorization: Bearer {{loginArthur.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "titulo": "Teste de validação",
+    "descricao": 123
+}
+
+### [VALIDACAO-03] Título vazio
+# Esperado: 400 Bad Request
+POST {{baseUrl}}/tarefas
+Authorization: Bearer {{loginArthur.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "titulo": "   "
+}

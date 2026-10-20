@@ -6,7 +6,7 @@ import { equipes } from "./equipes.js";
 export const tarefas = pgTable("tarefas", {
     id: serial("id").primaryKey(),
     usuarioId: integer("usuario_id").notNull().references(() => usuarios.id),
-    equipeId: integer("equipe_id").references(() => equipes.id, { onDelete: "restrict" }),
+    equipeId: integer("equipe_id").references(() => equipes.id, { onDelete: "cascade" }),
     responsavelId: integer("responsavel_id").references(() => usuarios.id),
     titulo: varchar("titulo", { length: 150 }).notNull(),
     descricao: text("descricao"),

@@ -183,3 +183,54 @@ Content-Type: application/json
 # Esperado: 204 No Content
 DELETE {{baseUrl}}/equipes/{{equipeId}}/membros/3
 Authorization: Bearer {{loginLider.response.body.$.token}}
+
+
+### [VALIDACAO-01] Adicionar membro com ID negativo
+# Esperado: 400 Bad Request
+POST {{baseUrl}}/equipes/{{equipeId}}/membros
+Authorization: Bearer {{loginDono.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "usuarioId": -1
+}
+
+### [VALIDACAO-02] Adicionar membro com ID zero
+# Esperado: 400 Bad Request
+POST {{baseUrl}}/equipes/{{equipeId}}/membros
+Authorization: Bearer {{loginDono.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "usuarioId": 0
+}
+
+### [VALIDACAO-03] Adicionar membro com ID booleano
+# Esperado: 400 Bad Request
+POST {{baseUrl}}/equipes/{{equipeId}}/membros
+Authorization: Bearer {{loginDono.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "usuarioId": true
+}
+
+### [VALIDACAO-04] Adicionar membro com ID decimal
+# Esperado: 400 Bad Request
+POST {{baseUrl}}/equipes/{{equipeId}}/membros
+Authorization: Bearer {{loginDono.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "usuarioId": 1.5
+}
+
+### [VALIDACAO-05] Adicionar membro com ID em branco
+# Esperado: 400 Bad Request
+POST {{baseUrl}}/equipes/{{equipeId}}/membros
+Authorization: Bearer {{loginDono.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "usuarioId": "   "
+}

@@ -2,15 +2,20 @@ import AppError from "../errors/AppError.js";
 
 export class CriarEquipeDTO {
     constructor({ nome }) {
-        if (!nome || nome.trim() === "") {
+        if (typeof nome !== "string" || !nome.trim()) {
             throw new AppError("Nome da equipe é obrigatório", 400);
         }
 
-        if (nome.length > 100) {
-            throw new AppError("Nome da equipe deve ter no máximo 100 caracteres", 400);
+        const nomeTratado = nome.trim();
+
+        if (nomeTratado.length > 100) {
+            throw new AppError(
+                "Nome da equipe deve ter no máximo 100 caracteres",
+                400
+            );
         }
 
-        this.nome = nome.trim();
+        this.nome = nomeTratado;
     }
 }
 
@@ -30,14 +35,19 @@ export class AtualizarEquipeDTO {
             throw new AppError("Nome da equipe é obrigatório", 400);
         }
 
-        if (!nome || nome.trim() === "") {
+        if (typeof nome !== "string" || !nome.trim()) {
             throw new AppError("Nome da equipe não pode ser vazio", 400);
         }
 
-        if (nome.length > 100) {
-            throw new AppError("Nome da equipe deve ter no máximo 100 caracteres", 400);
+        const nomeTratado = nome.trim();
+
+        if (nomeTratado.length > 100) {
+            throw new AppError(
+                "Nome da equipe deve ter no máximo 100 caracteres",
+                400
+            );
         }
 
-        this.nome = nome.trim();
+        this.nome = nomeTratado;
     }
 }

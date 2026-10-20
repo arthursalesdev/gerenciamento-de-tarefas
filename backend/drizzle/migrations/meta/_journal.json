@@ -71,6 +71,13 @@
       "when": 1792500923521,
       "tag": "0009_adicionar_tarefas_equipe_responsavel",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792506448380,
+      "tag": "0010_cascade_exclusao_equipe_tarefas_logs",
+      "breakpoints": true
     }
   ]
 }

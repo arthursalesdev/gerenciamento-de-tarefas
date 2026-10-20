@@ -21,11 +21,6 @@ Content-Type: application/json
     "senha": "{{senhaLider}}"
 }
 
-### [EXCLUSAO-01] DONO tenta excluir equipe com outros membros
-# Esperado: 409 Conflict
-DELETE {{baseUrl}}/equipes/{{equipeId}}
-Authorization: Bearer {{loginDono.response.body.$.token}}
-
 ### [CRIACAO-01] DONO cria equipe para testar exclusão
 # Esperado: 201 Created
 # @name criarEquipeTeste
@@ -37,9 +32,33 @@ Content-Type: application/json
     "nome": "Equipe temporária para exclusão"
 }
 
+### [CRIACAO-02] Criar tarefa na equipe temporária
+# Esperado: 201 Created
+# @name criarTarefaTeste
+POST {{baseUrl}}/tarefas
+Authorization: Bearer {{loginDono.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "titulo": "Tarefa temporária para testar exclusão em cascata",
+    "descricao": "Esta tarefa deve ser removida com a equipe.",
+    "prioridade": "MEDIA",
+    "equipeId": {{criarEquipeTeste.response.body.$.id}}
+}
+
+### [EXCLUSAO-01] DONO tenta excluir equipe com outros membros
+# Esperado: 409 Conflict
+DELETE {{baseUrl}}/equipes/{{equipeId}}
+Authorization: Bearer {{loginDono.response.body.$.token}}
+
 ### [EXCLUSAO-02] DONO exclui equipe com apenas um membro
 # Esperado: 204 No Content
 DELETE {{baseUrl}}/equipes/{{criarEquipeTeste.response.body.$.id}}
+Authorization: Bearer {{loginDono.response.body.$.token}}
+
+### [EXCLUSAO-03] Consultar equipe após exclusão
+# Esperado: 404 Not Found
+GET {{baseUrl}}/equipes/{{criarEquipeTeste.response.body.$.id}}
 Authorization: Bearer {{loginDono.response.body.$.token}}
 
 ### [ATUALIZACAO-01] DONO atualiza o nome da equipe
@@ -125,3 +144,33 @@ Authorization: Bearer {{loginLider.response.body.$.token}}
 # Esperado: 403 Forbidden
 GET {{baseUrl}}/equipes/4
 Authorization: Bearer {{loginLider.response.body.$.token}}
+
+### [VALIDACAO-01] Criar equipe com nome numérico
+# Esperado: 400 Bad Request
+POST {{baseUrl}}/equipes
+Authorization: Bearer {{loginDono.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "nome": 123
+}
+
+### [VALIDACAO-02] Criar equipe com nome vazio
+# Esperado: 400 Bad Request
+POST {{baseUrl}}/equipes
+Authorization: Bearer {{loginDono.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "nome": "   "
+}
+
+### [VALIDACAO-03] Atualizar equipe com nome inválido
+# Esperado: 400 Bad Request
+PUT {{baseUrl}}/equipes/{{equipeId}}
+Authorization: Bearer {{loginDono.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "nome": []
+}
