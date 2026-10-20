@@ -51,6 +51,7 @@ router.get("/", autenticar, equipeController.listar);
  *         required: true
  *         schema:
  *           type: integer
+ *           minimum: 1
  *         description: ID da equipe
  *     responses:
  *       200:
@@ -88,6 +89,7 @@ router.get("/:id", autenticar, equipeController.buscarPorId);
  *         required: true
  *         schema:
  *           type: integer
+ *           minimum: 1
  *         description: ID da equipe
  *     responses:
  *       200:
@@ -104,6 +106,16 @@ router.get("/:id", autenticar, equipeController.buscarPorId);
  *         description: Token não informado ou inválido
  *       403:
  *         description: Usuário não pertence à equipe
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erro'
+ *       404:
+ *         description: Equipe não encontrada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erro'
  */
 router.get("/:equipeId/tarefas", autenticar, tarefaController.listarPorEquipe);
 
@@ -121,12 +133,14 @@ router.get("/:equipeId/tarefas", autenticar, tarefaController.listarPorEquipe);
  *         required: true
  *         schema:
  *           type: integer
+ *           minimum: 1
  *         description: ID da equipe
  *       - in: path
  *         name: tarefaId
  *         required: true
  *         schema:
  *           type: integer
+ *           minimum: 1
  *         description: ID da tarefa
  *     responses:
  *       200:
@@ -151,6 +165,10 @@ router.get("/:equipeId/tarefas/:tarefaId", autenticar, tarefaController.buscarPo
  * /equipes/{equipeId}/tarefas/{tarefaId}:
  *   put:
  *     summary: Atualizar tarefa de uma equipe
+ *     description: >
+ *       Atualiza uma tarefa compartilhada.
+ *       O usuário precisa pertencer à equipe e possuir permissão para modificar a tarefa. Usuários com cargo VISUALIZADOR
+ *       não podem realizar alterações. Membros podem estar sujeitos a restrições relacionadas à autoria ou atribuição da tarefa.
  *     tags: [Tarefas]
  *     security:
  *       - bearerAuth: []
@@ -160,12 +178,14 @@ router.get("/:equipeId/tarefas/:tarefaId", autenticar, tarefaController.buscarPo
  *         required: true
  *         schema:
  *           type: integer
+ *           minimum: 1
  *         description: ID da equipe
  *       - in: path
  *         name: tarefaId
  *         required: true
  *         schema:
  *           type: integer
+ *           minimum: 1
  *         description: ID da tarefa
  *     requestBody:
  *       required: true
@@ -241,6 +261,7 @@ router.post("/", autenticar, equipeController.criar);
  *         required: true
  *         schema:
  *           type: integer
+ *           minimum: 1
  *         description: ID da equipe
  *     requestBody:
  *       required: true
@@ -287,6 +308,10 @@ router.put("/:id", autenticar, equipeController.atualizar);
  * /equipes/{id}:
  *   delete:
  *     summary: Excluir equipe
+ *     description: >
+ *       Apenas o DONO pode excluir a equipe.
+ *       A exclusão é permitida somente quando não existem outros membros.
+ *       As tarefas vinculadas à equipe e seus respectivos logs são excluídos automaticamente do banco de dados.
  *     tags: [Equipes]
  *     security:
  *       - bearerAuth: []
@@ -296,6 +321,7 @@ router.put("/:id", autenticar, equipeController.atualizar);
  *         required: true
  *         schema:
  *           type: integer
+ *           minimum: 1
  *         description: ID da equipe
  *     responses:
  *       204:
@@ -326,6 +352,9 @@ router.delete("/:id", autenticar, equipeController.deletar);
  * /equipes/{equipeId}/tarefas/{tarefaId}:
  *   delete:
  *     summary: Excluir tarefa de uma equipe
+ *     description: >
+ *       Realiza a exclusão lógica de uma tarefa compartilhada.
+ *       O usuário deve pertencer à equipe e possuir permissão para excluir a tarefa. Usuários com cargo VISUALIZADOR não podem realizar exclusões.
  *     tags: [Tarefas]
  *     security:
  *       - bearerAuth: []
@@ -335,11 +364,13 @@ router.delete("/:id", autenticar, equipeController.deletar);
  *         required: true
  *         schema:
  *           type: integer
+ *           minimum: 1
  *       - in: path
  *         name: tarefaId
  *         required: true
  *         schema:
  *           type: integer
+ *           minimum: 1
  *     responses:
  *       204:
  *         description: Tarefa excluída com sucesso

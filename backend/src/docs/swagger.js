@@ -1,4 +1,8 @@
 import swaggerJSDoc from "swagger-jsdoc";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const diretorioAtual = path.dirname(fileURLToPath(import.meta.url));
 
 const options = {
     definition: {
@@ -67,18 +71,27 @@ const options = {
                 Tarefa: {
                     type: "object",
                     properties: {
-                        id: {
+                        id: { type: "integer", example: 1 },
+                        usuarioId: { type: "integer", example: 1 },
+                        equipeId: {
                             type: "integer",
-                            example: 1
+                            nullable: true,
+                            example: 2
+                        },
+                        responsavelId: {
+                            type: "integer",
+                            nullable: true,
+                            example: 3
                         },
                         titulo: {
                             type: "string",
-                            example: "Finalizar atividade"
+                            maxLength: 150,
+                            example: "Finalizar documentação"
                         },
                         descricao: {
                             type: "string",
                             nullable: true,
-                            example: "Finalizar documentação da API"
+                            example: "Revisar os endpoints"
                         },
                         status: {
                             type: "string",
@@ -88,35 +101,31 @@ const options = {
                         prioridade: {
                             type: "string",
                             enum: ["BAIXA", "MEDIA", "ALTA"],
-                            nullable: true,
-                            example: "ALTA"
+                            example: "MEDIA"
                         },
                         dataLimite: {
                             type: "string",
                             format: "date-time",
-                            nullable: true,
-                            example: "2026-10-10T23:59:00.000Z"
+                            nullable: true
                         },
                         criadoEm: {
                             type: "string",
-                            format: "date-time",
-                            example: "2026-09-30T12:00:00.000Z"
+                            format: "date-time"
                         },
                         atualizadoEm: {
                             type: "string",
-                            format: "date-time",
-                            nullable: true,
-                            example: "2026-09-30T13:00:00.000Z"
+                            format: "date-time"
                         }
                     }
                 },
 
                 Erro: {
                     type: "object",
+                    required: ["mensagem"],
                     properties: {
-                        message: {
+                        mensagem: {
                             type: "string",
-                            example: "Erro ao processar a requisição"
+                            example: "Tarefa não encontrada"
                         }
                     }
                 },
@@ -127,22 +136,35 @@ const options = {
                     properties: {
                         titulo: {
                             type: "string",
+                            minLength: 1,
                             maxLength: 150,
-                            example: "Finalizar atividade"
+                            example: "Implementar autenticação"
                         },
                         descricao: {
                             type: "string",
-                            example: "Finalizar documentação da API"
+                            nullable: true,
+                            example: "Integrar o login ao backend"
                         },
                         prioridade: {
                             type: "string",
                             enum: ["BAIXA", "MEDIA", "ALTA"],
-                            example: "ALTA"
+                            default: "MEDIA"
                         },
                         dataLimite: {
                             type: "string",
-                            format: "date-time",
-                            example: "2026-10-10T23:59:00.000Z"
+                            format: "date-time"
+                        },
+                        equipeId: {
+                            type: "integer",
+                            minimum: 1,
+                            nullable: true,
+                            description: "Omitir para criar uma tarefa individual"
+                        },
+                        responsavelId: {
+                            type: "integer",
+                            minimum: 1,
+                            nullable: true,
+                            description: "Usuário responsável, que deve pertencer à equipe"
                         }
                     }
                 },
@@ -152,28 +174,24 @@ const options = {
                     properties: {
                         titulo: {
                             type: "string",
-                            maxLength: 150,
-                            example: "Finalizar documentação"
+                            maxLength: 150
                         },
                         descricao: {
                             type: "string",
-                            example: "Revisar e finalizar a documentação da API"
+                            nullable: true
                         },
                         status: {
                             type: "string",
-                            enum: ["PENDENTE", "EM_ANDAMENTO", "CONCLUIDA"],
-                            example: "EM_ANDAMENTO"
+                            enum: ["PENDENTE", "EM_ANDAMENTO", "CONCLUIDA"]
                         },
                         prioridade: {
                             type: "string",
-                            enum: ["BAIXA", "MEDIA", "ALTA"],
-                            example: "MEDIA"
+                            enum: ["BAIXA", "MEDIA", "ALTA"]
                         },
                         dataLimite: {
                             type: "string",
                             format: "date-time",
-                            nullable: true,
-                            example: "2026-10-15T23:59:00.000Z"
+                            nullable: true
                         }
                     }
                 },
@@ -212,6 +230,7 @@ const options = {
                     properties: {
                         nome: {
                             type: "string",
+                            minLength: 1,
                             maxLength: 100,
                             example: "Equipe TCC"
                         }
@@ -224,6 +243,7 @@ const options = {
                     properties: {
                         nome: {
                             type: "string",
+                            minLength: 1,
                             maxLength: 100,
                             example: "Equipe Desenvolvimento"
                         }
@@ -264,6 +284,7 @@ const options = {
                     properties: {
                         usuarioId: {
                             type: "integer",
+                            minimum: 1,
                             example: 2
                         }
                     }
@@ -285,8 +306,9 @@ const options = {
     },
 
     apis: [
-        "./src/routes/*.js"
-    ]
+        path.resolve(diretorioAtual, "../routes/*.js")
+    ],
+    failOnErrors: true
 };
 
 const swaggerSpec = swaggerJSDoc(options);

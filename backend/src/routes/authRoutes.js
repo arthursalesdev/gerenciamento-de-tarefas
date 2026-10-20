@@ -30,6 +30,7 @@ const router = Router();
  *             properties:
  *               nome:
  *                 type: string
+ *                 minLength: 1
  *                 example: Arthur
  *               email:
  *                 type: string
@@ -37,6 +38,8 @@ const router = Router();
  *                 example: arthur@teste.com
  *               senha:
  *                 type: string
+ *                 format: password
+ *                 minLength: 6
  *                 example: "123456"
  *     responses:
  *       201:

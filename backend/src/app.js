@@ -18,6 +18,9 @@ app.use("/tarefas", tarefaRoutes);
 app.use("/equipes", equipeRoutes);
 app.use("/equipes", membroEquipeRoutes);
 
+app.get("/api-docs.json", (req, res) => {
+    res.json(swaggerSpec);
+});
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use(errorHandler);

@@ -25,6 +25,7 @@ const router = Router();
  *         required: true
  *         schema:
  *           type: integer
+ *           minimum: 1
  *         description: ID da equipe
  *     responses:
  *       200:
@@ -70,6 +71,7 @@ router.get("/:equipeId/membros", autenticar, membroEquipeController.listar);
  *         required: true
  *         schema:
  *           type: integer
+ *           minimum: 1
  *         description: ID da equipe
  *     requestBody:
  *       required: true
@@ -117,7 +119,55 @@ router.get("/:equipeId/membros", autenticar, membroEquipeController.listar);
  */
 router.post("/:equipeId/membros", autenticar, membroEquipeController.adicionar);
 
-
+/**
+ * @swagger
+ * /equipes/{equipeId}/membros/me:
+ *   delete:
+ *     summary: Sair voluntariamente de uma equipe
+ *     description: >
+ *       Permite que o usuário autenticado saia de uma equipe
+ *       da qual participa. O DONO não pode abandonar a equipe
+ *       enquanto for o proprietário; antes, deve transferir
+ *       a propriedade para outro membro.
+ *     tags: [Membros]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: equipeId
+ *         required: true
+ *         description: ID da equipe
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *     responses:
+ *       204:
+ *         description: Usuário saiu da equipe com sucesso
+ *       400:
+ *         description: Saída não permitida pelas regras da equipe
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erro'
+ *       401:
+ *         description: Token não informado, inválido ou expirado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erro'
+ *       403:
+ *         description: Usuário sem permissão para realizar a operação
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erro'
+ *       404:
+ *         description: Equipe não encontrada ou usuário não pertence à equipe
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erro'
+ */
 router.delete("/:equipeId/membros/me", autenticar, membroEquipeController.sairDaEquipe);
 
 /**
@@ -134,12 +184,14 @@ router.delete("/:equipeId/membros/me", autenticar, membroEquipeController.sairDa
  *         required: true
  *         schema:
  *           type: integer
+ *           minimum: 1
  *         description: ID da equipe
  *       - in: path
  *         name: usuarioId
  *         required: true
  *         schema:
  *           type: integer
+ *           minimum: 1
  *         description: ID do usuário que será removido da equipe
  *     responses:
  *       204:
@@ -266,16 +318,37 @@ router.patch("/:equipeId/membros/:usuarioId/cargo", autenticar, membroEquipeCont
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/MembroEquipe'
+
  *       400:
  *         description: Dados inválidos ou transferência para si mesmo
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erro'
  *       401:
- *         description: Não autenticado
+ *         description: Token não informado, inválido ou expirado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erro'
  *       403:
  *         description: Usuário não é o DONO da equipe
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erro'
  *       404:
  *         description: Equipe ou destinatário não encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erro'
  *       409:
  *         description: Conflito durante a transferência
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erro'
  */
 router.patch("/:equipeId/propriedade", autenticar, membroEquipeController.transferirPropriedade);
 

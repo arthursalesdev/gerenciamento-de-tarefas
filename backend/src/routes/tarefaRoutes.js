@@ -15,7 +15,7 @@ const router = Router();
  * @swagger
  * /tarefas:
  *   get:
- *     summary: Listar tarefas do usuário autenticado
+ *     summary: Listar tarefas individuais do usuário autenticado
  *     tags: [Tarefas]
  *     security:
  *       - bearerAuth: []
@@ -35,7 +35,7 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Erro'
  *             example:
- *               message: Token inválido ou expirado
+ *               mensagem: Token inválido ou expirado
  */
 router.get("/", autenticar, tarefaController.listarTodas);
 
@@ -43,7 +43,7 @@ router.get("/", autenticar, tarefaController.listarTodas);
  * @swagger
  * /tarefas/{id}:
  *   get:
- *     summary: Buscar tarefa por ID
+ *     summary: Buscar tarefa individual por ID
  *     tags: [Tarefas]
  *     security:
  *       - bearerAuth: []
@@ -79,7 +79,11 @@ router.get("/:id", autenticar, tarefaController.buscarPorId);
  * @swagger
  * /tarefas:
  *   post:
- *     summary: Criar nova tarefa
+ *     summary: Criar tarefa individual ou de equipe
+ *     description: >
+ *       Cria uma tarefa individual quando equipeId não é informado.
+ *       Quando equipeId é informado, cria uma tarefa compartilhada na equipe correspondente. O usuário precisa pertencer à equipe e possuir permissão para criar tarefas.
+ *       O responsavelId, quando informado, deve pertencer à equipe.
  *     tags: [Tarefas]
  *     security:
  *       - bearerAuth: []
@@ -108,6 +112,12 @@ router.get("/:id", autenticar, tarefaController.buscarPorId);
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Erro'
+ *       403:
+ *         description: Usuário sem permissão para criar tarefa na equipe
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erro'
  */
 router.post("/", autenticar, tarefaController.criar);
 
@@ -115,7 +125,7 @@ router.post("/", autenticar, tarefaController.criar);
  * @swagger
  * /tarefas/{id}:
  *   put:
- *     summary: Atualizar tarefa
+ *     summary: Atualizar tarefa individual
  *     tags: [Tarefas]
  *     security:
  *       - bearerAuth: []
@@ -164,7 +174,7 @@ router.put("/:id", autenticar, tarefaController.atualizar);
  * @swagger
  * /tarefas/{id}:
  *   delete:
- *     summary: Excluir tarefa
+ *     summary: Excluir tarefa individual
  *     tags: [Tarefas]
  *     security:
  *       - bearerAuth: []
