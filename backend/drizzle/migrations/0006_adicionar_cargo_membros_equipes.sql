@@ -1,0 +1,2 @@
+CREATE TYPE "public"."cargo_equipe" AS ENUM('DONO', 'LIDER', 'MEMBRO', 'VISUALIZADOR');--> statement-breakpoint
+ALTER TABLE "membros_equipes" ADD COLUMN "cargo" "cargo_equipe" DEFAULT 'MEMBRO' NOT NULL;

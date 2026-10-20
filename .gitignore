@@ -1,12 +1,19 @@
+# Variáveis de ambiente
 .env
 **/.env
 
 !.env.example
 !**/.env.example
 
+# Dependências
 **/node_modules/
 
+# Builds
 **/dist/
 
+# Logs
 npm-debug.log*
 *.log
+
+# Configurações locais do REST Client
+.vscode/settings.json

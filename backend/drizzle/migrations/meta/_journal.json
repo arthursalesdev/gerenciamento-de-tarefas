@@ -29,6 +29,48 @@
       "when": 1787333545024,
       "tag": "0003_breezy_slyde",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790794330979,
+      "tag": "0004_puzzling_legion",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790858073330,
+      "tag": "0005_criar_tabela_membros_equipes",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790862484166,
+      "tag": "0006_adicionar_cargo_membros_equipes",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792452715045,
+      "tag": "0007_dono_unico_por_equipe",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792463331706,
+      "tag": "0008_cascade_exclusao_equipe",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792500923521,
+      "tag": "0009_adicionar_tarefas_equipe_responsavel",
+      "breakpoints": true
     }
   ]
 }

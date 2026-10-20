@@ -1,0 +1,309 @@
+@baseUrl = http://localhost:3000
+
+### [AUTH-01] Login do Arthur
+# @name loginArthur
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "{{emailDono}}",
+    "senha": "{{senhaDono}}"
+}
+
+### [AUTH-02] Login do João
+# @name loginJoao
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "{{emailLider}}",
+    "senha": "{{senhaLider}}"
+}
+
+### [AUTH-03] Login como VISUALIZADOR
+# @name loginVisualizador
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "{{emailMaria}}",
+    "senha": "{{senhaMaria}}"
+}
+
+### [CRIACAO-01] Criar tarefa individual
+# Esperado: 201 Created
+# @name criarTarefaIndividual
+POST {{baseUrl}}/tarefas
+Authorization: Bearer {{loginArthur.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "titulo": "Estudar React",
+    "descricao": "Revisar componentes e hooks",
+    "prioridade": "MEDIA"
+}
+
+### [CRIACAO-02] Criar tarefa de equipe como DONO
+# Esperado: 201 Created
+# @name criarTarefaEquipe
+POST {{baseUrl}}/tarefas
+Authorization: Bearer {{loginArthur.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "titulo": "Implementar dashboard da equipe",
+    "descricao": "Desenvolver a interface principal do sistema",
+    "prioridade": "ALTA",
+    "equipeId": 2,
+    "responsavelId": 2
+}
+
+### [CRIACAO-03] Impedir responsável fora da equipe
+# Esperado: 400 Bad Request
+POST {{baseUrl}}/tarefas
+Authorization: Bearer {{loginArthur.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "titulo": "Teste de responsável inválido",
+    "prioridade": "MEDIA",
+    "equipeId": 2,
+    "responsavelId": 99999
+}
+
+### [CRIACAO-04] MEMBRO não pode atribuir tarefa a outra pessoa
+# Esperado: 403 Forbidden
+POST {{baseUrl}}/tarefas
+Authorization: Bearer {{loginJoao.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "titulo": "Teste de permissão do membro",
+    "prioridade": "MEDIA",
+    "equipeId": 3,
+    "responsavelId": 1
+}
+
+
+### [CRIACAO-05] MEMBRO criando tarefa para si mesmo
+# Esperado: 201 Created
+# @name criarTarefaComoMembro
+POST {{baseUrl}}/tarefas
+Authorization: Bearer {{loginJoao.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "titulo": "Desenvolver tela de configurações",
+    "descricao": "Implementar as configurações do usuário",
+    "prioridade": "MEDIA",
+    "equipeId": 3,
+    "responsavelId": 2
+}
+
+### [ISOLAMENTO-01] Buscar tarefa individual
+# Esperado: 200 OK
+GET {{baseUrl}}/tarefas/6
+Authorization: Bearer {{loginArthur.response.body.$.token}}
+
+### [ISOLAMENTO-02] Impedir acesso à tarefa de equipe pela rota individual
+# Esperado: 404 Not Found
+GET {{baseUrl}}/tarefas/7
+Authorization: Bearer {{loginArthur.response.body.$.token}}
+
+### [EQUIPE-01] Listar tarefas da equipe 2 como DONO
+# Esperado: 200 OK
+# @name listarTarefasEquipeDono
+GET {{baseUrl}}/equipes/2/tarefas
+Authorization: Bearer {{loginArthur.response.body.$.token}}
+
+### [EQUIPE-02] Listar tarefas da equipe 2 como LIDER
+# Esperado: 200 OK
+# @name listarTarefasEquipeLider
+GET {{baseUrl}}/equipes/2/tarefas
+Authorization: Bearer {{loginJoao.response.body.$.token}}
+
+### [EQUIPE-03] Bloquear listagem sem vínculo com a equipe
+# Esperado: 403 Forbidden
+# @name listarTarefasEquipeSemAcesso
+GET {{baseUrl}}/equipes/99999/tarefas
+Authorization: Bearer {{loginArthur.response.body.$.token}}
+
+### [EQUIPE-04] Bloquear acesso a equipe existente sem participação
+# Esperado: 403 Forbidden
+# @name listarTarefasEquipeExterna
+GET {{baseUrl}}/equipes/4/tarefas
+Authorization: Bearer {{loginJoao.response.body.$.token}}
+
+### [EQUIPE-05] Buscar tarefa da equipe 2 como DONO
+# Esperado: 200 OK
+# @name buscarTarefaEquipeDono
+GET {{baseUrl}}/equipes/2/tarefas/7
+Authorization: Bearer {{loginArthur.response.body.$.token}}
+
+### [EQUIPE-06] Buscar tarefa da equipe 2 como LIDER
+# Esperado: 200 OK
+# @name buscarTarefaEquipeLider
+GET {{baseUrl}}/equipes/2/tarefas/7
+Authorization: Bearer {{loginJoao.response.body.$.token}}
+
+### [EQUIPE-07] Impedir consulta de tarefa de outra equipe
+# Esperado: 404 Not Found
+# @name buscarTarefaOutraEquipe
+GET {{baseUrl}}/equipes/3/tarefas/7
+Authorization: Bearer {{loginArthur.response.body.$.token}}
+
+### [EQUIPE-08] Atualizar tarefa da equipe 2 como DONO
+# Esperado: 200 OK
+# @name atualizarTarefaEquipeDono
+PUT {{baseUrl}}/equipes/2/tarefas/7
+Authorization: Bearer {{loginArthur.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "titulo": "Implementar dashboard principal da equipe",
+    "descricao": "Desenvolver a interface principal e os indicadores do sistema",
+    "status": "EM_ANDAMENTO",
+    "prioridade": "ALTA"
+}
+
+### [EQUIPE-09] Atualizar tarefa da equipe 2 como LIDER
+# Esperado: 200 OK
+# @name atualizarTarefaEquipeLider
+PUT {{baseUrl}}/equipes/2/tarefas/7
+Authorization: Bearer {{loginJoao.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "status": "CONCLUIDA"
+}
+
+### [EQUIPE-10] MEMBRO atualiza tarefa atribuída a ele
+# Esperado: 200 OK
+# @name atualizarTarefaEquipeMembro
+PUT {{baseUrl}}/equipes/3/tarefas/8
+Authorization: Bearer {{loginJoao.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "status": "EM_ANDAMENTO"
+}
+
+### [EQUIPE-11] MEMBRO tenta atualizar tarefa de outra equipe
+# Esperado: 404 Not Found
+# @name atualizarTarefaOutraEquipe
+PUT {{baseUrl}}/equipes/3/tarefas/7
+Authorization: Bearer {{loginJoao.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "status": "PENDENTE"
+}
+
+### [EQUIPE-12] Preparar tarefa para testar permissões de MEMBRO
+# Esperado: 201 Created
+# @name criarTarefaPermissaoMembro
+POST {{baseUrl}}/tarefas
+Authorization: Bearer {{loginArthur.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "titulo": "Revisar arquitetura da equipe",
+    "descricao": "Tarefa exclusiva do Arthur para validar permissões",
+    "prioridade": "MEDIA",
+    "equipeId": 3,
+    "responsavelId": 1
+}
+
+### [EQUIPE-13] MEMBRO tenta atualizar tarefa de outra pessoa
+# Esperado: 403 Forbidden
+# @name atualizarTarefaSemPermissaoMembro
+PUT {{baseUrl}}/equipes/3/tarefas/9
+Authorization: Bearer {{loginJoao.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "status": "CONCLUIDA"
+}
+
+### [EQUIPE-14] Usuário externo tenta atualizar tarefa de equipe
+# Esperado: 403 Forbidden
+# @name atualizarTarefaEquipeSemAcesso
+PUT {{baseUrl}}/equipes/4/tarefas/9
+Authorization: Bearer {{loginJoao.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "status": "CONCLUIDA"
+}
+
+### [EQUIPE-15] VISUALIZADOR tenta atualizar tarefa da equipe
+# Esperado: 403 Forbidden
+# @name atualizarTarefaEquipeVisualizador
+PUT {{baseUrl}}/equipes/2/tarefas/7
+Authorization: Bearer {{loginVisualizador.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "status": "PENDENTE"
+}
+
+### [EQUIPE-16] VISUALIZADOR consulta tarefa da equipe
+# Esperado: 200 OK
+# @name consultarTarefaEquipeVisualizador
+GET {{baseUrl}}/equipes/2/tarefas/7
+Authorization: Bearer {{loginVisualizador.response.body.$.token}}
+
+### [EQUIPE-17] VISUALIZADOR tenta excluir tarefa
+# Esperado: 403 Forbidden
+# @name excluirTarefaVisualizador
+DELETE {{baseUrl}}/equipes/2/tarefas/7
+Authorization: Bearer {{loginVisualizador.response.body.$.token}}
+
+
+### [EQUIPE-18] MEMBRO tenta excluir tarefa criada por outra pessoa
+# Esperado: 403 Forbidden
+# @name excluirTarefaOutroCriador
+DELETE {{baseUrl}}/equipes/3/tarefas/9
+Authorization: Bearer {{loginJoao.response.body.$.token}}
+
+
+### [EQUIPE-19] Usuário externo tenta excluir tarefa
+# Esperado: 403 Forbidden
+# @name excluirTarefaSemAcesso
+DELETE {{baseUrl}}/equipes/4/tarefas/9
+Authorization: Bearer {{loginJoao.response.body.$.token}}
+
+
+### [EQUIPE-20] MEMBRO exclui tarefa que criou
+# Esperado: 204 No Content
+# @name excluirTarefaMembro
+DELETE {{baseUrl}}/equipes/3/tarefas/8
+Authorization: Bearer {{loginJoao.response.body.$.token}}
+
+
+### [EQUIPE-21] Consultar tarefa excluída
+# Esperado: 404 Not Found
+# @name consultarTarefaExcluida
+GET {{baseUrl}}/equipes/3/tarefas/8
+Authorization: Bearer {{loginArthur.response.body.$.token}}
+
+
+### [EQUIPE-22] LIDER exclui tarefa criada pelo DONO
+# Esperado: 204 No Content
+# @name excluirTarefaLider
+DELETE {{baseUrl}}/equipes/2/tarefas/7
+Authorization: Bearer {{loginJoao.response.body.$.token}}
+
+
+### [EQUIPE-23] DONO exclui tarefa da equipe
+# Esperado: 204 No Content
+# @name excluirTarefaDono
+DELETE {{baseUrl}}/equipes/3/tarefas/9
+Authorization: Bearer {{loginArthur.response.body.$.token}}
+
+
+### [EQUIPE-24] Impedir exclusão repetida
+# Esperado: 404 Not Found
+# @name excluirTarefaNovamente
+DELETE {{baseUrl}}/equipes/3/tarefas/9
+Authorization: Bearer {{loginArthur.response.body.$.token}}

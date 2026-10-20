@@ -1,0 +1,127 @@
+@baseUrl = http://localhost:3000
+@equipeId = 2
+
+### [AUTH-01] Login como DONO
+# @name loginDono
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "{{emailDono}}",
+    "senha": "{{senhaDono}}"
+}
+
+### [AUTH-02] Login como LIDER
+# @name loginLider
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "{{emailLider}}",
+    "senha": "{{senhaLider}}"
+}
+
+### [EXCLUSAO-01] DONO tenta excluir equipe com outros membros
+# Esperado: 409 Conflict
+DELETE {{baseUrl}}/equipes/{{equipeId}}
+Authorization: Bearer {{loginDono.response.body.$.token}}
+
+### [CRIACAO-01] DONO cria equipe para testar exclusão
+# Esperado: 201 Created
+# @name criarEquipeTeste
+POST {{baseUrl}}/equipes
+Authorization: Bearer {{loginDono.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "nome": "Equipe temporária para exclusão"
+}
+
+### [EXCLUSAO-02] DONO exclui equipe com apenas um membro
+# Esperado: 204 No Content
+DELETE {{baseUrl}}/equipes/{{criarEquipeTeste.response.body.$.id}}
+Authorization: Bearer {{loginDono.response.body.$.token}}
+
+### [ATUALIZACAO-01] DONO atualiza o nome da equipe
+# Esperado: 200 OK
+PUT {{baseUrl}}/equipes/2
+Authorization: Bearer {{loginDono.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "nome": "Equipe para testes - Atualizada"
+}
+
+### [ATUALIZACAO-02] LIDER tenta atualizar equipe
+# Esperado: 403 Forbidden
+PUT {{baseUrl}}/equipes/2
+Authorization: Bearer {{loginLider.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "nome": "Alteração indevida pelo LIDER"
+}
+
+### [ATUALIZACAO-03] Novo DONO (João) atualiza equipe
+# Esperado: 200 OK
+
+PUT {{baseUrl}}/equipes/2
+Authorization: Bearer {{loginLider.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "nome": "Equipe para testes - Novo DONO"
+}
+
+### [ATUALIZACAO-04] Antigo DONO (Arthur) tenta atualizar equipe
+# Esperado: 403 Forbidden
+
+PUT {{baseUrl}}/equipes/2
+Authorization: Bearer {{loginDono.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "nome": "Alteração indevida pelo antigo DONO"
+}
+
+
+### [PROPRIEDADE-01] Arthur transfere propriedade para João
+# Esperado: 200 OK
+# Arthur (ID 1): DONO -> LIDER
+# João (ID 2): LIDER -> DONO
+PATCH {{baseUrl}}/equipes/2/propriedade
+Authorization: Bearer {{loginDono.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "novoDonoId": 2
+}
+
+### [PROPRIEDADE-02] João devolve propriedade para Arthur
+# Esperado: 200 OK
+PATCH {{baseUrl}}/equipes/2/propriedade
+Authorization: Bearer {{loginLider.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "novoDonoId": 1
+}
+
+
+### [LISTAGEM-01] Listar equipes do Arthur
+# Esperado: 200 OK
+# Deve retornar apenas equipes das quais Arthur participa
+GET {{baseUrl}}/equipes
+Authorization: Bearer {{loginDono.response.body.$.token}}
+
+
+### [LISTAGEM-02] Listar equipes do João
+# Esperado: 200 OK
+# Deve retornar apenas equipes das quais João participa
+GET {{baseUrl}}/equipes
+Authorization: Bearer {{loginLider.response.body.$.token}}
+
+### [CONSULTA-01] João tenta consultar equipe da qual não participa
+# Esperado: 403 Forbidden
+GET {{baseUrl}}/equipes/4
+Authorization: Bearer {{loginLider.response.body.$.token}}

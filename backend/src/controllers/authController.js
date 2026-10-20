@@ -18,6 +18,15 @@ class AuthController {
             next(error);
         }
     }
+
+    async me(req, res, next) {
+        try {
+            const usuario = await authService.buscarUsuarioLogado(req.usuario.id);
+            return res.status(200).json(usuario);
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 export default new AuthController();

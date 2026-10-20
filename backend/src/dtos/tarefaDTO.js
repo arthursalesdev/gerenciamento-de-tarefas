@@ -10,7 +10,7 @@ export class CriarTarefaDTO {
             throw new AppError("Título deve ter no máximo 150 caracteres", 400);
         }
 
-        const prioridadesPermitidas = [ "BAIXA", "MEDIA", "ALTA" ];
+        const prioridadesPermitidas = ["BAIXA", "MEDIA", "ALTA"];
 
         if (dados.prioridade && !prioridadesPermitidas.includes(dados.prioridade)) {
             throw new AppError("Prioridade deve ser BAIXA, MEDIA ou ALTA", 400);
@@ -27,6 +27,30 @@ export class CriarTarefaDTO {
         this.titulo = dados.titulo.trim();
         this.descricao = dados.descricao?.trim();
         this.prioridade = dados.prioridade;
+
+        if (dados.equipeId !== undefined && dados.equipeId !== null) {
+            if (!Number.isInteger(dados.equipeId) || dados.equipeId <= 0) {
+                throw new AppError("ID da equipe inválido", 400);
+            }
+
+            this.equipeId = dados.equipeId;
+        } else {
+            this.equipeId = null;
+        }
+
+        if (dados.responsavelId !== undefined && dados.responsavelId !== null) {
+            if (!Number.isInteger(dados.responsavelId) || dados.responsavelId <= 0) {
+                throw new AppError("ID do responsável inválido", 400);
+            }
+
+            if (this.equipeId === null) {
+                throw new AppError("Uma tarefa individual não pode ter responsável de equipe", 400);
+            }
+
+            this.responsavelId = dados.responsavelId;
+        } else {
+            this.responsavelId = null;
+        }
     }
 }
 
@@ -81,6 +105,9 @@ export class AtualizarTarefaDTO {
 export class TarefaResponseDTO {
     constructor(tarefa) {
         this.id = tarefa.id;
+        this.usuarioId = tarefa.usuarioId;
+        this.equipeId = tarefa.equipeId;
+        this.responsavelId = tarefa.responsavelId;
         this.titulo = tarefa.titulo;
         this.descricao = tarefa.descricao;
         this.status = tarefa.status;

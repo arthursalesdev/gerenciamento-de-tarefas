@@ -1,0 +1,15 @@
+@baseUrl = http://localhost:3000
+
+### Login
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "arthur@teste.com",
+    "senha": "123456"
+}
+
+### Consultar usuário autenticado
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{login.response.body.$.token}}
