@@ -1,10 +1,28 @@
+
 @baseUrl = http://localhost:3000
+
+# IDs existentes no banco de testes
 @equipeId = 2
 @donoId = 1
 @liderId = 2
-@usuarioId = 2
+@usuarioMariaId = 3
+
+# PRE-CONDICOES:
+# Arthur (ID 1) e DONO da equipe 2.
+# Joao (ID 2) e LIDER da equipe 2.
+# Maria (ID 3) e uma usuaria cadastrada.
+# As credenciais estao em .vscode/settings.json.
+#
+# ATENCAO:
+# Os testes de cargos e membros alteram o estado da equipe.
+# Execute na ordem indicada.
+
+# ============================================================
+# AUTENTICACAO
+# ============================================================
 
 ### [AUTH-01] Login como DONO
+# Esperado: 200 OK
 # @name loginDono
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
@@ -14,8 +32,8 @@ Content-Type: application/json
     "senha": "{{senhaDono}}"
 }
 
-
 ### [AUTH-02] Login como LIDER
+# Esperado: 200 OK
 # @name loginLider
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
@@ -25,7 +43,8 @@ Content-Type: application/json
     "senha": "{{senhaLider}}"
 }
 
-### [AUTH-03] Login como VISUALIZADOR
+### [AUTH-03] Login como Maria
+# Esperado: 200 OK
 # @name loginVisualizador
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
@@ -35,36 +54,53 @@ Content-Type: application/json
     "senha": "{{senhaMaria}}"
 }
 
+
+# ============================================================
+# CONSULTA
+# ============================================================
+
 ### [MEM-01] Listar membros da equipe
 # Esperado: 200 OK
 GET {{baseUrl}}/equipes/{{equipeId}}/membros
 Authorization: Bearer {{loginDono.response.body.$.token}}
 
-### [MEM-02] DONO adiciona membro à equipe
+
+# ============================================================
+# ADICAO DE MEMBROS
+# ============================================================
+
+### [MEM-02] DONO adiciona Maria à equipe
 # Esperado: 201 Created
+# Executar somente se Maria ainda não pertencer à equipe.
+# @name adicionarMaria
 POST {{baseUrl}}/equipes/{{equipeId}}/membros
 Authorization: Bearer {{loginDono.response.body.$.token}}
 Content-Type: application/json
 
 {
-    "usuarioId": 3
+    "usuarioId": {{usuarioMariaId}}
 }
 
-### [MEM-03] Adicionar Maria novamente à equipe 2
-# Esperado: 201 Created
-# @name adicionarMariaParaTeste
-POST {{baseUrl}}/equipes/2/membros
+### [MEM-03] Impedir adição duplicada de Maria
+# Esperado: 409 Conflict
+# Executar depois de MEM-02, ou se Maria já for membro.
+POST {{baseUrl}}/equipes/{{equipeId}}/membros
 Authorization: Bearer {{loginDono.response.body.$.token}}
 Content-Type: application/json
 
 {
-    "usuarioId": 3
+    "usuarioId": {{usuarioMariaId}}
 }
 
-### [CARGO-01] DONO promove MEMBRO para LIDER
+
+# ============================================================
+# ALTERACAO DE CARGOS
+# ============================================================
+
+### [CARGO-01] DONO promove Maria para LIDER
 # Esperado: 200 OK
-# Atenção: execute apenas se o alvo ainda for MEMBRO.
-PATCH {{baseUrl}}/equipes/{{equipeId}}/membros/{{usuarioId}}/cargo
+# Maria precisa ser MEMBRO antes desta requisição.
+PATCH {{baseUrl}}/equipes/{{equipeId}}/membros/{{usuarioMariaId}}/cargo
 Authorization: Bearer {{loginDono.response.body.$.token}}
 Content-Type: application/json
 
@@ -72,16 +108,14 @@ Content-Type: application/json
     "cargo": "LIDER"
 }
 
-
-### [CARGO-02] Alterar Maria para VISUALIZADOR
+### [CARGO-02] DONO altera Maria para MEMBRO
 # Esperado: 200 OK
-# @name alterarMariaParaVisualizador
-PATCH {{baseUrl}}/equipes/2/membros/3/cargo
+PATCH {{baseUrl}}/equipes/{{equipeId}}/membros/{{usuarioMariaId}}/cargo
 Authorization: Bearer {{loginDono.response.body.$.token}}
 Content-Type: application/json
 
 {
-    "cargo": "VISUALIZADOR"
+    "cargo": "MEMBRO"
 }
 
 ### [PERM-01] LIDER tenta alterar cargo do DONO
@@ -94,9 +128,9 @@ Content-Type: application/json
     "cargo": "MEMBRO"
 }
 
-### [PERM-02] LIDER altera MEMBRO para VISUALIZADOR
+### [PERM-02] LIDER altera Maria de MEMBRO para VISUALIZADOR
 # Esperado: 200 OK
-PATCH {{baseUrl}}/equipes/{{equipeId}}/membros/3/cargo
+PATCH {{baseUrl}}/equipes/{{equipeId}}/membros/{{usuarioMariaId}}/cargo
 Authorization: Bearer {{loginLider.response.body.$.token}}
 Content-Type: application/json
 
@@ -124,7 +158,7 @@ Content-Type: application/json
     "cargo": "MEMBRO"
 }
 
-### [PERM-05] DONO tenta atribuir DONO a outro membro
+### [PERM-05] DONO tenta atribuir DONO diretamente
 # Esperado: 400 Bad Request
 PATCH {{baseUrl}}/equipes/{{equipeId}}/membros/{{liderId}}/cargo
 Authorization: Bearer {{loginDono.response.body.$.token}}
@@ -134,56 +168,10 @@ Content-Type: application/json
     "cargo": "DONO"
 }
 
-### [PROP-01] DONO transfere propriedade para LIDER
-# Esperado: 200 OK
-PATCH {{baseUrl}}/equipes/{{equipeId}}/propriedade
-Authorization: Bearer {{loginDono.response.body.$.token}}
-Content-Type: application/json
 
-{
-    "novoDonoId": {{liderId}}
-}
-
-### [PROP-02] João devolve a propriedade para Arthur
-# Esperado: 200 OK
-PATCH {{baseUrl}}/equipes/2/propriedade
-Authorization: Bearer {{loginLider.response.body.$.token}}
-Content-Type: application/json
-
-{
-    "novoDonoId": 1
-}
-
-### [SAIDA-01] DONO não pode sair da própria equipe
-# Esperado: 403 Forbidden
-DELETE {{baseUrl}}/equipes/2/membros/me
-Authorization: Bearer {{loginDono.response.body.$.token}}
-
-### [SAIDA-02] Visualizador sai voluntariamente da equipe
-# Esperado: 204 No Content
-DELETE {{baseUrl}}/equipes/2/membros/me
-Authorization: Bearer {{loginVisualizador.response.body.$.token}}
-
-### [PERMISSAO-01] LIDER não pode remover o DONO
-# Esperado: 403 Forbidden
-DELETE {{baseUrl}}/equipes/2/membros/1
-Authorization: Bearer {{loginLider.response.body.$.token}}
-
-### [PERMISSAO-02] LIDER pode adicionar membros
-# Esperado: 201 Created
-POST {{baseUrl}}/equipes/2/membros
-Authorization: Bearer {{loginLider.response.body.$.token}}
-Content-Type: application/json
-
-{
-    "usuarioId": 3
-}
-
-### [PERMISSAO-03] LIDER remove um MEMBRO
-# Esperado: 204 No Content
-DELETE {{baseUrl}}/equipes/{{equipeId}}/membros/3
-Authorization: Bearer {{loginLider.response.body.$.token}}
-
+# ============================================================
+# VALIDACOES DE DADOS
+# ============================================================
 
 ### [VALIDACAO-01] Adicionar membro com ID negativo
 # Esperado: 400 Bad Request
@@ -234,3 +222,65 @@ Content-Type: application/json
 {
     "usuarioId": "   "
 }
+
+
+# ============================================================
+# TRANSFERENCIA DE PROPRIEDADE
+# Executar em ordem, sem interromper.
+# ============================================================
+
+### [PROP-01] Arthur transfere propriedade para João
+# Esperado: 200 OK
+PATCH {{baseUrl}}/equipes/{{equipeId}}/propriedade
+Authorization: Bearer {{loginDono.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "novoDonoId": {{liderId}}
+}
+
+### [PROP-02] João devolve propriedade para Arthur
+# Esperado: 200 OK
+PATCH {{baseUrl}}/equipes/{{equipeId}}/propriedade
+Authorization: Bearer {{loginLider.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "novoDonoId": {{donoId}}
+}
+
+
+# ============================================================
+# SAIDA E REMOCAO
+# Executar esta secao por ultimo.
+# ============================================================
+
+### [SAIDA-01] DONO não pode sair da própria equipe
+# Esperado: 403 Forbidden
+DELETE {{baseUrl}}/equipes/{{equipeId}}/membros/me
+Authorization: Bearer {{loginDono.response.body.$.token}}
+
+### [SAIDA-02] Maria sai voluntariamente da equipe
+# Esperado: 204 No Content
+DELETE {{baseUrl}}/equipes/{{equipeId}}/membros/me
+Authorization: Bearer {{loginVisualizador.response.body.$.token}}
+
+### [PERMISSAO-01] LIDER não pode remover o DONO
+# Esperado: 403 Forbidden
+DELETE {{baseUrl}}/equipes/{{equipeId}}/membros/{{donoId}}
+Authorization: Bearer {{loginLider.response.body.$.token}}
+
+### [PERMISSAO-02] LIDER adiciona Maria novamente
+# Esperado: 201 Created
+POST {{baseUrl}}/equipes/{{equipeId}}/membros
+Authorization: Bearer {{loginLider.response.body.$.token}}
+Content-Type: application/json
+
+{
+    "usuarioId": {{usuarioMariaId}}
+}
+
+### [PERMISSAO-03] LIDER remove Maria da equipe
+# Esperado: 204 No Content
+DELETE {{baseUrl}}/equipes/{{equipeId}}/membros/{{usuarioMariaId}}
+Authorization: Bearer {{loginLider.response.body.$.token}}
