@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { autenticar } from "../middlewares/autenticar.js";
 import equipeController from "../controllers/equipeController.js";
-import tarefaController from "../controllers/tarefaController.js";
+import tarefaEquipeController from "../controllers/tarefaEquipeController.js";
 
 const router = Router();
 /**
@@ -117,7 +117,7 @@ router.get("/:id", autenticar, equipeController.buscarPorId);
  *             schema:
  *               $ref: '#/components/schemas/Erro'
  */
-router.get("/:equipeId/tarefas", autenticar, tarefaController.listarPorEquipe);
+router.get("/:equipeId/tarefas", autenticar, tarefaEquipeController.listarPorEquipe);
 
 /**
  * @swagger
@@ -158,7 +158,7 @@ router.get("/:equipeId/tarefas", autenticar, tarefaController.listarPorEquipe);
  *       404:
  *         description: Tarefa não encontrada na equipe
  */
-router.get("/:equipeId/tarefas/:tarefaId", autenticar, tarefaController.buscarPorIdNaEquipe);
+router.get("/:equipeId/tarefas/:tarefaId", autenticar, tarefaEquipeController.buscarPorIdNaEquipe);
 
 /**
  * @swagger
@@ -209,7 +209,7 @@ router.get("/:equipeId/tarefas/:tarefaId", autenticar, tarefaController.buscarPo
  *       404:
  *         description: Tarefa não encontrada na equipe
  */
-router.put("/:equipeId/tarefas/:tarefaId", autenticar, tarefaController.atualizarNaEquipe);
+router.put("/:equipeId/tarefas/:tarefaId", autenticar, tarefaEquipeController.atualizarNaEquipe);
 
 /**
  * @swagger
@@ -383,6 +383,6 @@ router.delete("/:id", autenticar, equipeController.deletar);
  *       404:
  *         description: Tarefa não encontrada
  */
-router.delete("/:equipeId/tarefas/:tarefaId", autenticar, tarefaController.deletarNaEquipe);
+router.delete("/:equipeId/tarefas/:tarefaId", autenticar, tarefaEquipeController.deletarNaEquipe);
 
 export default router;
