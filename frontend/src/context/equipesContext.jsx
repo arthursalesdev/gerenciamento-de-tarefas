@@ -3,8 +3,6 @@ import { useAuth } from "./authContext";
 import api from "../services/api";
 
 const EquipesContext = createContext();
-const CHAVE_EQUIPES = "equipes";
-const equipesIniciais = [];
 
 export function EquipesProvider({ children }) {
     const { usuarioLogado } = useAuth();
@@ -16,15 +14,6 @@ export function EquipesProvider({ children }) {
     const [equipesApi, setEquipesApi] = useState([]);
     const [carregandoEquipes, setCarregandoEquipes] = useState(false);
     const [erroEquipes, setErroEquipes] = useState("");
-
-    const [equipes, setEquipes] = useState(() => {
-        const equipesSalvas = localStorage.getItem(CHAVE_EQUIPES);
-        return equipesSalvas ? JSON.parse(equipesSalvas) : equipesIniciais;
-    });
-
-    useEffect(() => {
-        localStorage.setItem(CHAVE_EQUIPES, JSON.stringify(equipes));
-    }, [equipes]);
 
     const recarregarEquipes = useCallback(async () => {
         const usuarioDaConsulta = usuarioLogado?.id;
@@ -93,35 +82,16 @@ export function EquipesProvider({ children }) {
         });
 
         const novaEquipe = resposta.data;
-
         setEquipesApi((atuais) => [...atuais, novaEquipe]);
-        setEquipes((atuais) => [
-            ...atuais,
-            {
-                ...novaEquipe,
-                donoId: usuarioLogado.id
-            }
-        ]);
 
         return novaEquipe;
-    };
-
-    const transferirDono = (equipeId, novoDonoId) => {
-        setEquipes((equipesAtuais) =>
-            equipesAtuais.map((equipe) =>
-                String(equipe.id) === String(equipeId)
-                    ? {
-                        ...equipe, donoId: novoDonoId
-                    }
-                    : equipe
-            )
-        );
     };
 
     const equipesVisiveis = usuarioLogado?.id ? equipesApi : [];
 
     return (
-        <EquipesContext.Provider value={{ equipes: equipesVisiveis, equipesApi, recarregarEquipes, carregandoEquipes, erroEquipes, buscarEquipePorId, criarEquipe, transferirDono }}>            {children}
+        <EquipesContext.Provider value={{ equipes: equipesVisiveis, equipesApi, recarregarEquipes, carregandoEquipes, erroEquipes, buscarEquipePorId, criarEquipe }}>
+            {children}
         </EquipesContext.Provider>
     );
 }

@@ -6,7 +6,6 @@ import { useEquipes } from "./equipesContext";
 import { useMembros } from "./membrosContext";
 
 const TarefasContext = createContext();
-const CHAVE_TAREFAS = "tarefas";
 
 const statusParaFrontend = {
     PENDENTE: "pendente", EM_ANDAMENTO: "andamento", CONCLUIDA: "concluido"
@@ -25,15 +24,6 @@ function normalizarTarefa(tarefa) {
     };
 }
 
-function lerTarefasLocais() {
-    try {
-        const salvas = JSON.parse(localStorage.getItem(CHAVE_TAREFAS) || "[]");
-        return Array.isArray(salvas) ? salvas : [];
-    } catch {
-        return [];
-    }
-}
-
 function mensagemErro(error) {
     return (error.response?.data?.message || error.response?.data?.mensagem || error.message || "Não foi possível salvar a tarefa");
 }
@@ -49,15 +39,10 @@ export function TarefasProvider({ children }) {
 
     usuarioAtualRef.current = usuarioLogado?.id;
 
-    const [tarefasLocais, setTarefasLocais] = useState(lerTarefasLocais);
     const [tarefasApi, setTarefasApi] = useState([]);
     const [tarefasEquipesApi, setTarefasEquipesApi] = useState([]);
     const [carregandoTarefas, setCarregandoTarefas] = useState(false);
     const [erroTarefas, setErroTarefas] = useState("");
-
-    useEffect(() => {
-        localStorage.setItem(CHAVE_TAREFAS, JSON.stringify(tarefasLocais));
-    }, [tarefasLocais]);
 
     useEffect(() => {
         const usuarioDaConsulta = usuarioLogado?.id;
@@ -254,24 +239,6 @@ export function TarefasProvider({ children }) {
             String(tarefa.equipeId ?? "") ===
             String(tarefaReferencia.equipeId ?? "");
 
-        if (tarefaReferencia.origemPersistencia === "local") {
-            const tarefaLocal = tarefasLocais.find(mesmaTarefa);
-
-            if (!tarefaLocal) {
-                throw new Error("Tarefa local não encontrada.");
-            }
-
-            setTarefasLocais((atuais) =>
-                atuais.map((tarefa) =>
-                    mesmaTarefa(tarefa)
-                        ? { ...tarefa, ...dadosAtualizados }
-                        : tarefa
-                )
-            );
-
-            return;
-        }
-
         if (tarefaReferencia.origemPersistencia !== "api") {
             throw new Error("Origem da tarefa inválida.");
         }
@@ -357,18 +324,6 @@ export function TarefasProvider({ children }) {
             String(tarefa.equipeId ?? "") ===
             String(tarefaReferencia.equipeId ?? "");
 
-        if (tarefaReferencia.origemPersistencia === "local") {
-            const tarefaLocal = tarefasLocais.find(mesmaTarefa);
-
-            if (!tarefaLocal) {
-                throw new Error("Tarefa local não encontrada");
-            }
-
-            setTarefasLocais((atuais) => atuais.filter((tarefa) => !mesmaTarefa(tarefa)));
-
-            return;
-        }
-
         if (tarefaReferencia.origemPersistencia !== "api") {
             throw new Error("Origem da tarefa inválida");
         }
@@ -396,18 +351,9 @@ export function TarefasProvider({ children }) {
         setTarefasApi((atuais) => atuais.filter((tarefa) => !mesmaTarefa(tarefa)));
     };
 
-    const removerResponsavelDaEquipe = (usuarioId, equipeId) => {
-        setTarefasLocais((atuais) =>
-            atuais.map((tarefa) =>
-                String(tarefa.usuarioId) === String(usuarioId) &&
-                    String(tarefa.equipeId) === String(equipeId) ? { ...tarefa, usuarioId: null } : tarefa
-            )
-        );
-    };
-
     return (
         <TarefasContext.Provider
-            value={{ tarefas, criarTarefa, atualizarTarefa, atualizarResponsavel, excluirTarefa, removerResponsavelDaEquipe, carregandoTarefas, erroTarefas }}>
+            value={{ tarefas, criarTarefa, atualizarTarefa, atualizarResponsavel, excluirTarefa, carregandoTarefas, erroTarefas }}>
             {children}
         </TarefasContext.Provider>
     );
