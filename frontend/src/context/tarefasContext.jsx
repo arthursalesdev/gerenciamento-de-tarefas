@@ -150,18 +150,10 @@ export function TarefasProvider({ children }) {
             origemPersistencia: "local"
         })),
 
-        ...tarefasApi
-            .filter((tarefa) =>
-                !tarefasLocais.some(
-                    (local) =>
-                        !local.equipeId &&
-                        String(local.id) === String(tarefa.id)
-                )
-            )
-            .map((tarefa) => ({
-                ...tarefa,
-                origemPersistencia: "api"
-            })),
+        ...tarefasApi.map((tarefa) => ({
+            ...tarefa,
+            origemPersistencia: "api"
+        })),
 
         ...tarefasEquipesApi.map((tarefa) => ({
             ...tarefa,
@@ -216,13 +208,26 @@ export function TarefasProvider({ children }) {
         return tarefaNormalizada;
     };
 
-    const atualizarTarefa = async (id, dadosAtualizados) => {
-        const tarefaLocal = tarefasLocais.find((tarefa) => String(tarefa.id) === String(id));
+    const atualizarTarefa = async (id, dadosAtualizados, tarefaReferencia) => {
+        if (!tarefaReferencia?.origemPersistencia) {
+            throw new Error("Origem da tarefa não identificada.");
+        }
 
-        if (tarefaLocal) {
+        const mesmaTarefa = (tarefa) =>
+            String(tarefa.id) === String(id) &&
+            String(tarefa.equipeId ?? "") ===
+            String(tarefaReferencia.equipeId ?? "");
+
+        if (tarefaReferencia.origemPersistencia === "local") {
+            const tarefaLocal = tarefasLocais.find(mesmaTarefa);
+
+            if (!tarefaLocal) {
+                throw new Error("Tarefa local não encontrada.");
+            }
+
             setTarefasLocais((atuais) =>
                 atuais.map((tarefa) =>
-                    String(tarefa.id) === String(id)
+                    mesmaTarefa(tarefa)
                         ? { ...tarefa, ...dadosAtualizados }
                         : tarefa
                 )
@@ -231,7 +236,9 @@ export function TarefasProvider({ children }) {
             return;
         }
 
-        const tarefaEquipe = tarefasEquipesApi.find((tarefa) => String(tarefa.id) === String(id));
+        if (tarefaReferencia.origemPersistencia !== "api") {
+            throw new Error("Origem da tarefa inválida.");
+        }
 
         const payload = {
             titulo: dadosAtualizados.titulo,
@@ -249,31 +256,23 @@ export function TarefasProvider({ children }) {
             }
         });
 
+        if (tarefaReferencia.equipeId != null) {
+            const tarefaEquipe = tarefasEquipesApi.find(mesmaTarefa);
 
-        if (tarefaEquipe) {
+            if (!tarefaEquipe) {
+                throw new Error("Tarefa de equipe não encontrada.");
+            }
+
             const alterouResponsavel =
-                Object.prototype.hasOwnProperty.call(
-                    dadosAtualizados,
-                    "responsavelId"
-                ) &&
+                Object.prototype.hasOwnProperty.call(dadosAtualizados, "responsavelId") &&
                 String(dadosAtualizados.responsavelId ?? "") !==
                 String(tarefaEquipe.responsavelId ?? "");
 
-            const resposta = await api.put(
-                `/equipes/${tarefaEquipe.equipeId}/tarefas/${id}`,
-                payload
-            );
+            const resposta = await api.put(`/equipes/${tarefaEquipe.equipeId}/tarefas/${id}`, payload);
 
             let atualizada = normalizarTarefa(resposta.data);
 
-            setTarefasEquipesApi((atuais) =>
-                atuais.map((tarefa) =>
-                    String(tarefa.id) === String(id) &&
-                        String(tarefa.equipeId) === String(tarefaEquipe.equipeId)
-                        ? atualizada
-                        : tarefa
-                )
-            );
+            setTarefasEquipesApi((atuais) => atuais.map((tarefa) => mesmaTarefa(tarefa) ? atualizada : tarefa));
 
             if (alterouResponsavel) {
                 atualizada = await atualizarResponsavel(id, tarefaEquipe.equipeId, dadosAtualizados.responsavelId);
@@ -282,10 +281,16 @@ export function TarefasProvider({ children }) {
             return atualizada;
         }
 
+        const tarefaPessoal = tarefasApi.find(mesmaTarefa);
+
+        if (!tarefaPessoal) {
+            throw new Error("Tarefa pessoal não encontrada.");
+        }
+
         const resposta = await api.put(`/tarefas/${id}`, payload);
         const atualizada = normalizarTarefa(resposta.data);
 
-        setTarefasApi((atuais) => atuais.map((tarefa) => String(tarefa.id) === String(id) ? atualizada : tarefa));
+        setTarefasApi((atuais) => atuais.map((tarefa) => mesmaTarefa(tarefa) ? atualizada : tarefa));
 
         return atualizada;
     };
@@ -306,24 +311,53 @@ export function TarefasProvider({ children }) {
         return tarefaAtualizada;
     };
 
-    const excluirTarefa = async (id) => {
-        const tarefaLocal = tarefasLocais.find((tarefa) => String(tarefa.id) === String(id));
+    const excluirTarefa = async (id, tarefaReferencia) => {
+        if (!tarefaReferencia?.origemPersistencia) {
+            throw new Error("Origem da tarefa não identificada");
+        }
 
-        if (tarefaLocal) {
-            setTarefasLocais((atuais) => atuais.filter((tarefa) => String(tarefa.id) !== String(id)));
+        const mesmaTarefa = (tarefa) =>
+            String(tarefa.id) === String(id) &&
+            String(tarefa.equipeId ?? "") ===
+            String(tarefaReferencia.equipeId ?? "");
+
+        if (tarefaReferencia.origemPersistencia === "local") {
+            const tarefaLocal = tarefasLocais.find(mesmaTarefa);
+
+            if (!tarefaLocal) {
+                throw new Error("Tarefa local não encontrada");
+            }
+
+            setTarefasLocais((atuais) => atuais.filter((tarefa) => !mesmaTarefa(tarefa)));
+
             return;
         }
 
-        const tarefaEquipe = tarefasEquipesApi.find((tarefa) => String(tarefa.id) === String(id));
+        if (tarefaReferencia.origemPersistencia !== "api") {
+            throw new Error("Origem da tarefa inválida");
+        }
 
-        if (tarefaEquipe) {
+        if (tarefaReferencia.equipeId != null) {
+            const tarefaEquipe = tarefasEquipesApi.find(mesmaTarefa);
+
+            if (!tarefaEquipe) {
+                throw new Error("Tarefa de equipe não encontrada");
+            }
+
             await api.delete(`/equipes/${tarefaEquipe.equipeId}/tarefas/${id}`);
-            setTarefasEquipesApi((atuais) => atuais.filter((tarefa) => String(tarefa.id) !== String(id)));
+            setTarefasEquipesApi((atuais) => atuais.filter((tarefa) => !mesmaTarefa(tarefa)));
+
             return;
+        }
+
+        const tarefaPessoal = tarefasApi.find(mesmaTarefa);
+
+        if (!tarefaPessoal) {
+            throw new Error("Tarefa pessoal não encontrada");
         }
 
         await api.delete(`/tarefas/${id}`);
-        setTarefasApi((atuais) => atuais.filter((tarefa) => String(tarefa.id) !== String(id)));
+        setTarefasApi((atuais) => atuais.filter((tarefa) => !mesmaTarefa(tarefa)));
     };
 
     const removerResponsavelDaEquipe = (usuarioId, equipeId) => {

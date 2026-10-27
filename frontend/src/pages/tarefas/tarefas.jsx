@@ -149,7 +149,7 @@ function Tarefas() {
         setErroOperacao("");
 
         try {
-            await excluirTarefa(tarefaParaExcluir.id);
+            await excluirTarefa(tarefaParaExcluir.id, tarefaParaExcluir);
             setModalExcluirAberto(false);
             setTarefaParaExcluir(null);
         } catch (error) {
@@ -212,7 +212,7 @@ function Tarefas() {
                         <CabecalhoColuna titulo="Pendentes" quantidade={tarefasPendentes.length} status="pendente" />
                         <Stack spacing={2}>
                             {tarefasPendentes.map((tarefa) => (
-                                <CardTarefa key={tarefa.id} {...tarefa} usuario={buscarResponsavel(tarefa)} origem={areaPessoalAtiva ? buscarOrigemTarefa(tarefa) : null} podeEditar={podeEditarTarefa(tarefa)} podeExcluir={podeExcluirTarefa(tarefa)} aoEditar={() => abrirModalEditar(tarefa)} aoExcluir={() => abrirModalExcluir(tarefa)} />
+                                <CardTarefa key={`${tarefa.origemPersistencia}-${tarefa.equipeId ?? "pessoal"}-${tarefa.id}`} {...tarefa} usuario={buscarResponsavel(tarefa)} origem={areaPessoalAtiva ? buscarOrigemTarefa(tarefa) : null} podeEditar={podeEditarTarefa(tarefa)} podeExcluir={podeExcluirTarefa(tarefa)} aoEditar={() => abrirModalEditar(tarefa)} aoExcluir={() => abrirModalExcluir(tarefa)} />
 
                             ))}
                         </Stack>
@@ -222,7 +222,7 @@ function Tarefas() {
                         <CabecalhoColuna titulo="Em Andamento" quantidade={tarefasAndamento.length} status="andamento" />
                         <Stack spacing={2}>
                             {tarefasAndamento.map((tarefa) => (
-                                <CardTarefa key={tarefa.id} {...tarefa} usuario={buscarResponsavel(tarefa)} origem={areaPessoalAtiva ? buscarOrigemTarefa(tarefa) : null} podeEditar={podeEditarTarefa(tarefa)} podeExcluir={podeExcluirTarefa(tarefa)} aoEditar={() => abrirModalEditar(tarefa)} aoExcluir={() => abrirModalExcluir(tarefa)} />
+                                <CardTarefa key={`${tarefa.origemPersistencia}-${tarefa.equipeId ?? "pessoal"}-${tarefa.id}`} {...tarefa} usuario={buscarResponsavel(tarefa)} origem={areaPessoalAtiva ? buscarOrigemTarefa(tarefa) : null} podeEditar={podeEditarTarefa(tarefa)} podeExcluir={podeExcluirTarefa(tarefa)} aoEditar={() => abrirModalEditar(tarefa)} aoExcluir={() => abrirModalExcluir(tarefa)} />
                             ))}
                         </Stack>
                     </Card>
@@ -231,7 +231,7 @@ function Tarefas() {
                         <CabecalhoColuna titulo="Concluído" quantidade={tarefasConcluidas.length} status="concluido" />
                         <Stack spacing={2}>
                             {tarefasConcluidas.map((tarefa) => (
-                                <CardTarefa key={tarefa.id} {...tarefa} usuario={buscarResponsavel(tarefa)} origem={areaPessoalAtiva ? buscarOrigemTarefa(tarefa) : null} podeEditar={podeEditarTarefa(tarefa)} podeExcluir={podeExcluirTarefa(tarefa)} aoEditar={() => abrirModalEditar(tarefa)} aoExcluir={() => abrirModalExcluir(tarefa)} />
+                                <CardTarefa key={`${tarefa.origemPersistencia}-${tarefa.equipeId ?? "pessoal"}-${tarefa.id}`} {...tarefa} usuario={buscarResponsavel(tarefa)} origem={areaPessoalAtiva ? buscarOrigemTarefa(tarefa) : null} podeEditar={podeEditarTarefa(tarefa)} podeExcluir={podeExcluirTarefa(tarefa)} aoEditar={() => abrirModalEditar(tarefa)} aoExcluir={() => abrirModalExcluir(tarefa)} />
                             ))}
                         </Stack>
                     </Card>
@@ -245,7 +245,7 @@ function Tarefas() {
 
                 aoSalvar={async (dados) => {
                     if (modoModal === "editar") {
-                        await atualizarTarefa(tarefaSelecionada.id, dados);
+                        await atualizarTarefa(tarefaSelecionada.id, dados, tarefaSelecionada);
                     } else {
                         await criarTarefa({
                             ...dados,
