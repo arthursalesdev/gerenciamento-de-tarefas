@@ -201,18 +201,6 @@ export function MembrosProvider({ children }) {
         recarregarMembros().catch(() => { });
     }, [usuarioLogado?.id, equipesApi, recarregarMembros]);
 
-    const adicionarMembro = (usuarioId, equipeId, cargoId = "membro") => {
-        const jaExiste = membros.some((membro) => String(membro.usuarioId) === String(usuarioId) && String(membro.equipeId) === String(equipeId));
-
-        if (jaExiste) {
-            return false;
-        }
-
-        const novoMembro = { id: Date.now(), usuarioId, equipeId, cargoId };
-        setMembros((membrosAtuais) => [...membrosAtuais, novoMembro]);
-        return novoMembro;
-    };
-
     const removerMembro = async (usuarioId, equipeId) => {
         const membro = buscarMembro(usuarioId, equipeId);
 
@@ -340,7 +328,7 @@ export function MembrosProvider({ children }) {
     return (
         <MembrosContext.Provider
             value={{
-                membros, membrosApi, carregandoMembros, erroMembros, recarregarMembros, adicionarMembro, removerMembro, transferirPropriedade, podeSairDaEquipe,
+                membros, membrosApi, carregandoMembros, erroMembros, recarregarMembros, removerMembro, transferirPropriedade, podeSairDaEquipe,
                 podeRemoverMembro, buscarMembrosDaEquipe, buscarEquipesDoUsuario, buscarMembro, alterarCargo
             }}
         >

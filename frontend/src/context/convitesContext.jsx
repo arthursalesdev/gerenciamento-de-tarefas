@@ -5,7 +5,6 @@ import { useMembros } from "./membrosContext";
 import { useEquipes } from "./equipesContext";
 
 const ConvitesContext = createContext();
-const CHAVE_CONVITES = "convitesEquipes";
 
 export function ConvitesProvider({ children }) {
     const { recarregarMembros } = useMembros();
@@ -15,11 +14,6 @@ export function ConvitesProvider({ children }) {
     const [convitesApi, setConvitesApi] = useState([]);
     const [carregandoConvites, setCarregandoConvites] = useState(false);
     const [erroConvites, setErroConvites] = useState("");
-
-    const [convites, setConvites] = useState(() => {
-        const convitesSalvos = localStorage.getItem(CHAVE_CONVITES);
-        return convitesSalvos ? JSON.parse(convitesSalvos) : [];
-    });
 
     useEffect(() => {
         setConvitesApi([]);
@@ -108,15 +102,8 @@ export function ConvitesProvider({ children }) {
         return convitesApi.filter((convite) => String(convite.convidadoId) === String(usuarioId) && convite.status === "PENDENTE");
     };
 
-    const buscarConvitesDaEquipe = (equipeId) => {
-        return convites.filter(
-            (convite) =>
-                String(convite.equipeId) === String(equipeId) && convite.status === "pendente"
-        );
-    };
-
     return (
-        <ConvitesContext.Provider value={{ convites, convitesApi, carregandoConvites, erroConvites, enviarConvite, aceitarConvite, recusarConvite, cancelarConvite, buscarConvitesDoUsuario, buscarConvitesDaEquipe }}>
+        <ConvitesContext.Provider value={{ convitesApi, carregandoConvites, erroConvites, enviarConvite, aceitarConvite, recusarConvite, cancelarConvite, buscarConvitesDoUsuario }}>
             {children}
         </ConvitesContext.Provider>
     );

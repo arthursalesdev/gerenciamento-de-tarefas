@@ -25,7 +25,7 @@ function SeletorArea() {
     const { areaAtual, irParaPessoal, irParaEquipe } = useArea();
     const { equipes, criarEquipe, recarregarEquipes } = useEquipes();
     const { usuarioLogado } = useAuth();
-    const { adicionarMembro, buscarEquipesDoUsuario, buscarMembro, carregandoMembros, buscarMembrosDaEquipe, removerMembro } = useMembros();
+    const { buscarEquipesDoUsuario, buscarMembro, carregandoMembros, buscarMembrosDaEquipe, removerMembro } = useMembros();
     const { buscarCargoPorId } = useCargos();
 
     const buscarCargoUsuario = (equipeId) => {
@@ -62,7 +62,6 @@ function SeletorArea() {
 
         try {
             const novaEquipe = await criarEquipe(nome);
-            adicionarMembro(usuarioLogado.id, novaEquipe.id, "dono");
             irParaEquipe(novaEquipe);
             setModalEquipeAberto(false);
         } catch (error) {
