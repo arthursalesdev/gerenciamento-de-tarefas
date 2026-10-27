@@ -145,7 +145,7 @@ export const Navbar = () => {
                                     <Typography variant="body2" color="text.secondary">
                                         <strong>{usuarioLogado?.nomeUsuario}</strong>{" "}
                                         <Box component="span" sx={{ color: "primary.main" }}>
-                                            {usuarioLogado?.tag}
+                                            #{usuarioLogado?.tag}
                                         </Box>
                                     </Typography>
                                 </Box>
@@ -172,13 +172,6 @@ export const Navbar = () => {
                         {convitesPendentes.length > 0 && (
                             <Badge badgeContent={convitesPendentes.length} color="error" sx={{ mr: 1 }} />
                         )}
-                    </MenuItem>
-
-                    <MenuItem onClick={fecharMenuUsuario}>
-                        <SettingsOutlinedIcon sx={{ mr: 1.5, fontSize: 19, color: "primary.main" }} />
-                        <Typography variant="body2">
-                            Configurações
-                        </Typography>
                     </MenuItem>
                 </Menu>
             </AppBar>
