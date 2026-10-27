@@ -1,11 +1,11 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 
 import { db } from "../database/connection.js";
 import { membrosEquipes } from "../database/schemas/membrosEquipes.js";
+import { tarefas } from "../database/schemas/tarefas.js";
 import AppError from "../errors/AppError.js";
 
 class MembroEquipeRepository {
-
     async listarPorEquipe(equipeId) {
         return await db
             .select()
@@ -62,6 +62,46 @@ class MembroEquipeRepository {
         return resultado[0] || null;
     }
 
+    async removerComDesatribuicao(usuarioId, equipeId) {
+        return await db.transaction(async (tx) => {
+            const [membro] = await tx
+                .select()
+                .from(membrosEquipes)
+                .where(
+                    and(
+                        eq(membrosEquipes.usuarioId, usuarioId),
+                        eq(membrosEquipes.equipeId, equipeId)
+                    )
+                )
+                .for("update");
+
+            if (!membro) {
+                throw new AppError("O integrante não pertence mais à equipe", 409);
+            }
+
+            await tx
+                .update(tarefas)
+                .set({ responsavelId: null, atualizadoEm: new Date() })
+                .where(and(eq(tarefas.equipeId, equipeId), eq(tarefas.responsavelId, usuarioId), isNull(tarefas.excluidoEm)));
+
+            const [membroRemovido] = await tx
+                .delete(membrosEquipes)
+                .where(
+                    and(
+                        eq(membrosEquipes.usuarioId, usuarioId),
+                        eq(membrosEquipes.equipeId, equipeId)
+                    )
+                )
+                .returning();
+
+            if (!membroRemovido) {
+                throw new AppError("Não foi possível remover o integrante", 409);
+            }
+
+            return membroRemovido;
+        });
+    }
+
     async contarPorEquipe(equipeId) {
         const membros = await this.listarPorEquipe(equipeId);
         return membros.length;
@@ -86,41 +126,26 @@ class MembroEquipeRepository {
 
     async transferirPropriedade(equipeId, donoAtualId, novoDonoId) {
         return await db.transaction(async (tx) => {
-            // Bloqueia os membros da equipe durante a transferência.
             const membros = await tx
                 .select()
                 .from(membrosEquipes)
                 .where(eq(membrosEquipes.equipeId, equipeId))
                 .for("update");
 
-            // Confere novamente quem é o DONO dentro da transação.
             const donos = membros.filter(
                 (membro) => membro.cargo === "DONO"
             );
 
-            if (
-                donos.length !== 1 ||
-                donos[0].usuarioId !== donoAtualId
-            ) {
-                throw new AppError(
-                    "A propriedade da equipe foi alterada. Atualize os dados e tente novamente",
-                    409
-                );
+            if (donos.length !== 1 || donos[0].usuarioId !== donoAtualId) {
+                throw new AppError("A propriedade da equipe foi alterada. Atualize os dados e tente novamente", 409);
             }
 
-            // Confere se o destinatário continua na equipe.
-            const destinatario = membros.find(
-                (membro) => membro.usuarioId === novoDonoId
-            );
+            const destinatario = membros.find((membro) => membro.usuarioId === novoDonoId);
 
             if (!destinatario) {
-                throw new AppError(
-                    "O novo proprietário não pertence mais à equipe",
-                    409
-                );
+                throw new AppError("O novo proprietário não pertence mais à equipe", 409);
             }
 
-            // Rebaixa o DONO atual para LIDER.
             const antigosDonos = await tx
                 .update(membrosEquipes)
                 .set({ cargo: "LIDER" })
@@ -134,13 +159,9 @@ class MembroEquipeRepository {
                 .returning();
 
             if (antigosDonos.length !== 1) {
-                throw new AppError(
-                    "Não foi possível atualizar o proprietário atual",
-                    409
-                );
+                throw new AppError("Não foi possível atualizar o proprietário atual", 409);
             }
 
-            // Promove o destinatário para DONO.
             const novosDonos = await tx
                 .update(membrosEquipes)
                 .set({ cargo: "DONO" })
@@ -153,10 +174,7 @@ class MembroEquipeRepository {
                 .returning();
 
             if (novosDonos.length !== 1) {
-                throw new AppError(
-                    "Não foi possível definir o novo proprietário",
-                    409
-                );
+                throw new AppError("Não foi possível definir o novo proprietário", 409);
             }
 
             return novosDonos[0];

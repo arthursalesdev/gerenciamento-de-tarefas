@@ -112,7 +112,7 @@ class MembroEquipeService {
             );
         }
 
-        await membroEquipeRepository.remover(usuarioId, equipeId);
+        await membroEquipeRepository.removerComDesatribuicao(usuarioId, equipeId);
     }
 
     async alterarCargo(equipeId, usuarioId, dados, usuarioLogadoId) {
@@ -181,7 +181,7 @@ class MembroEquipeService {
             );
         }
 
-        await membroEquipeRepository.remover(usuarioLogadoId, equipeId);
+        await membroEquipeRepository.removerComDesatribuicao(usuarioLogadoId, equipeId);
     }
 
     async transferirPropriedade(equipeId, novoDonoId, usuarioLogadoId) {
