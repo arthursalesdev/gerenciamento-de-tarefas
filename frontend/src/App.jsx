@@ -1,5 +1,5 @@
 import Inicio from "./pages/Inicio/inicio";
-import Tarefas from "./pages/Tarefas/tarefas";
+import Tarefas from "./pages/tarefas/tarefas";
 import Gerenciamento from "./pages/Gerenciamento/gerenciamento";
 import Painel from "./pages/Painel/painel";
 

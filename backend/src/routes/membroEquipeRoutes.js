@@ -59,68 +59,6 @@ router.get("/:equipeId/membros", autenticar, membroEquipeController.listar);
 
 /**
  * @swagger
- * /equipes/{equipeId}/membros:
- *   post:
- *     summary: Adicionar membro à equipe
- *     tags: [Membros]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: equipeId
- *         required: true
- *         schema:
- *           type: integer
- *           minimum: 1
- *         description: ID da equipe
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/AdicionarMembro'
- *     responses:
- *       201:
- *         description: Membro adicionado com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/MembroEquipe'
- *       400:
- *         description: Dados inválidos
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Erro'
- *       401:
- *         description: Token não informado, inválido ou expirado
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Erro'
- *       403:
- *         description: Usuário sem permissão para adicionar membros
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Erro'
- *       404:
- *         description: Equipe ou usuário não encontrado
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Erro'
- *       409:
- *         description: Usuário já pertence à equipe
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Erro'
- */
-router.post("/:equipeId/membros", autenticar, membroEquipeController.adicionar);
-
-/**
- * @swagger
  * /equipes/{equipeId}/membros/me:
  *   delete:
  *     summary: Sair voluntariamente de uma equipe

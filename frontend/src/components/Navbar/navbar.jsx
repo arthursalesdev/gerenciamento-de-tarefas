@@ -12,7 +12,7 @@ import MailOutlineOutlinedIcon from '@mui/icons-material/MailOutlineOutlined';
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined';
 
-import ThemeToggle from "../../components/ThemeToggle";
+import ThemeToggle from "../../components/themeToggle";
 import SeletorArea from "../SeletorArea/seletorArea";
 import ModalAuth from "../ModalAuth/modalAuth";
 import ModalConvites from "../ModalConvites/modalConvites";

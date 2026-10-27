@@ -25,6 +25,7 @@ function ModalAuth({ aberto, aoFechar, modoInicial = "login" }) {
 
     const [erros, setErros] = useState({});
     const [mensagemErro, setMensagemErro] = useState("");
+    const [mensagemSucesso, setMensagemSucesso] = useState("");
     const [carregando, setCarregando] = useState(false);
 
     useEffect(() => {
@@ -44,6 +45,7 @@ function ModalAuth({ aberto, aoFechar, modoInicial = "login" }) {
         setNomeUsuario("");
         setMostrarSenha(false);
         setMostrarConfirmarSenha(false);
+        setMensagemSucesso("");
     };
 
     const validarEmail = (valor) => {
@@ -144,6 +146,7 @@ function ModalAuth({ aberto, aoFechar, modoInicial = "login" }) {
             setConfirmarSenha("");
             setErros({});
             setMensagemErro("");
+            setMensagemSucesso("Conta criada com sucesso! Faça login para continuar");
         } catch (erro) {
             console.error("Erro inesperado na autenticação:", erro);
             setMensagemErro("Ocorreu um erro inesperado. Tente novamente");
@@ -160,6 +163,7 @@ function ModalAuth({ aberto, aoFechar, modoInicial = "login" }) {
         setConfirmarSenha("");
         setMostrarSenha(false);
         setMostrarConfirmarSenha(false);
+        setMensagemSucesso("");
     };
 
     const fechar = () => {
@@ -242,6 +246,12 @@ function ModalAuth({ aberto, aoFechar, modoInicial = "login" }) {
                         />
                     )}
                 </Stack>
+
+                {mensagemSucesso && (
+                    <Typography variant="body2" color="success.main" sx={{ mt: 2 }}>
+                        {mensagemSucesso}
+                    </Typography>
+                )}
 
                 {mensagemErro && (
                     <Typography variant="body2" color="error.main" sx={{ mt: 2 }}>

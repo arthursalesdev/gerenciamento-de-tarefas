@@ -24,7 +24,7 @@ export function ConvitesProvider({ children }) {
     useEffect(() => {
         setConvitesApi([]);
         setCarregandoConvites(false);
-        
+
         if (!usuarioLogado?.id) {
             setConvitesApi([]);
             setErroConvites("");
@@ -105,10 +105,7 @@ export function ConvitesProvider({ children }) {
     };
 
     const buscarConvitesDoUsuario = (usuarioId) => {
-        return convites.filter(
-            (convite) =>
-                String(convite.convidadoId) === String(usuarioId) && convite.status === "pendente"
-        );
+        return convitesApi.filter((convite) => String(convite.convidadoId) === String(usuarioId) && convite.status === "PENDENTE");
     };
 
     const buscarConvitesDaEquipe = (equipeId) => {

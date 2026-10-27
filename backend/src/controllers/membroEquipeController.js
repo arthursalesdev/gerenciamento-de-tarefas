@@ -12,17 +12,6 @@ class MembroEquipeController {
         }
     }
 
-    async adicionar(req, res, next) {
-        try {
-            const equipeId = Number(req.params.equipeId);
-            const usuarioLogadoId = req.usuario.id;
-            const membro = await membroEquipeService.adicionar(equipeId, req.body, usuarioLogadoId);
-            return res.status(201).json(membro);
-        } catch (error) {
-            next(error);
-        }
-    }
-
     async remover(req, res, next) {
         try {
             const equipeId = Number(req.params.equipeId);
