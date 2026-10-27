@@ -6,10 +6,8 @@ import { useEquipes } from "./equipesContext";
 
 const MembrosContext = createContext();
 
-const CHAVE_MEMBROS = "membrosEquipes";
-
 export function MembrosProvider({ children }) {
-    const { transferirDono, equipesApi } = useEquipes();
+    const { equipesApi } = useEquipes();
     const { usuarioLogado } = useAuth();
     const usuarioAtualRef = useRef(usuarioLogado?.id);
     const requisicaoMembrosRef = useRef(0);
@@ -19,11 +17,6 @@ export function MembrosProvider({ children }) {
     const [membrosApi, setMembrosApi] = useState([]);
     const [carregandoMembros, setCarregandoMembros] = useState(false);
     const [erroMembros, setErroMembros] = useState("");
-
-    const [membros, setMembros] = useState(() => {
-        const membrosSalvos = localStorage.getItem(CHAVE_MEMBROS);
-        return membrosSalvos ? JSON.parse(membrosSalvos) : [];
-    });
 
     const transferirPropriedade = async (equipeId, donoAtualId, novoDonoId) => {
         const donoAtual = buscarMembro(donoAtualId, equipeId);
@@ -52,28 +45,8 @@ export function MembrosProvider({ children }) {
         );
 
         if (!equipeReal) {
-            setMembros((atuais) =>
-                atuais.map((membro) => {
-                    if (String(membro.equipeId) !== String(equipeId)) {
-                        return membro;
-                    }
-
-                    if (String(membro.usuarioId) === String(donoAtualId)) {
-                        return { ...membro, cargoId: "lider" };
-                    }
-
-                    if (String(membro.usuarioId) === String(novoDonoId)) {
-                        return { ...membro, cargoId: "dono" };
-                    }
-
-                    return membro;
-                })
-            );
-
-            transferirDono(equipeId, novoDonoId);
-
             return {
-                sucesso: true, mensagem: "Propriedade transferida com sucesso"
+                sucesso: false, mensagem: "Não foi possível localizar a equipe. Atualize a página e tente novamente"
             };
         }
 
@@ -108,10 +81,6 @@ export function MembrosProvider({ children }) {
 
         return membro.cargoId !== "dono";
     };
-
-    useEffect(() => {
-        localStorage.setItem(CHAVE_MEMBROS, JSON.stringify(membros));
-    }, [membros]);
 
     const recarregarMembros = useCallback(async (equipesAtualizadas) => {
         const listaEquipes = equipesAtualizadas ?? equipesApi;
@@ -191,7 +160,7 @@ export function MembrosProvider({ children }) {
     useEffect(() => {
         requisicaoMembrosRef.current += 1;
         setCarregandoMembros(false);
-        
+
         if (!usuarioLogado?.id || !equipesApi.length) {
             setMembrosApi([]);
             setErroMembros("");
@@ -221,16 +190,15 @@ export function MembrosProvider({ children }) {
         );
 
         if (!equipeReal) {
-            setMembros((atuais) => atuais.filter((item) => !(String(item.usuarioId) === String(usuarioId) && String(item.equipeId) === String(equipeId))));
-            return { sucesso: true };
+            return {
+                sucesso: false, mensagem: "Não foi possível localizar a equipe. Atualize a página e tente novamente."
+            };
         }
 
         try {
             const saindoDaEquipe = String(usuarioId) === String(usuarioLogado?.id);
             const endpoint = saindoDaEquipe ? `/equipes/${equipeId}/membros/me` : `/equipes/${equipeId}/membros/${usuarioId}`;
             await api.delete(endpoint);
-
-            setMembros((atuais) => atuais.filter((item) => !(String(item.usuarioId) === String(usuarioId) && String(item.equipeId) === String(equipeId))));
 
             if (saindoDaEquipe) {
                 setMembrosApi((atuais) => atuais.filter((item) => String(item.equipeId) !== String(equipeId)));
@@ -251,16 +219,10 @@ export function MembrosProvider({ children }) {
         const equipeReal = equipesApi.some((equipe) => String(equipe.id) === String(equipeId));
 
         if (!equipeReal) {
-            setMembros((atuais) =>
-                atuais.map((membro) =>
-                    String(membro.usuarioId) === String(usuarioId) &&
-                        String(membro.equipeId) === String(equipeId)
-                        ? { ...membro, cargoId: novoCargoId }
-                        : membro
-                )
-            );
-
-            return { sucesso: true };
+            return {
+                sucesso: false,
+                mensagem: "Não foi possível localizar a equipe. Atualize a página e tente novamente."
+            };
         }
 
         try {
@@ -328,7 +290,7 @@ export function MembrosProvider({ children }) {
     return (
         <MembrosContext.Provider
             value={{
-                membros, membrosApi, carregandoMembros, erroMembros, recarregarMembros, removerMembro, transferirPropriedade, podeSairDaEquipe,
+                membrosApi, carregandoMembros, erroMembros, recarregarMembros, removerMembro, transferirPropriedade, podeSairDaEquipe,
                 podeRemoverMembro, buscarMembrosDaEquipe, buscarEquipesDoUsuario, buscarMembro, alterarCargo
             }}
         >
