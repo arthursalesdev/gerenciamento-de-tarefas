@@ -56,9 +56,8 @@ export function EquipesProvider({ children }) {
         recarregarEquipes().catch(() => { });
     }, [usuarioLogado?.id, recarregarEquipes]);
 
-
     const buscarEquipePorId = (id) => {
-        return (equipesApi.find((equipe) => String(equipe.id) === String(id)) || equipes.find((equipe) => String(equipe.id) === String(id)));
+        return equipesVisiveis.find((equipe) => String(equipe.id) === String(id));
     };
 
     const criarEquipe = async (nome) => {
@@ -96,10 +95,7 @@ export function EquipesProvider({ children }) {
         );
     };
 
-    const equipesVisiveis = [
-        ...equipesApi,
-        ...equipes.filter((local) => !equipesApi.some((real) => String(real.id) === String(local.id)))
-    ];
+    const equipesVisiveis = usuarioLogado?.id ? equipesApi : [];
 
     return (
         <EquipesContext.Provider value={{ equipes: equipesVisiveis, equipesApi, recarregarEquipes, carregandoEquipes, erroEquipes, buscarEquipePorId, criarEquipe, transferirDono }}>            {children}

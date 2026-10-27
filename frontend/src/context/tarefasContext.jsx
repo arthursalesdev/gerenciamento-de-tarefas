@@ -162,22 +162,16 @@ export function TarefasProvider({ children }) {
         };
     }, [usuarioLogado?.id, verificandoSessao, equipesApi, membrosApi]);
 
-    const tarefas = [
-        ...tarefasLocais.map((tarefa) => ({
-            ...tarefa,
-            origemPersistencia: "local"
-        })),
+    const tarefas = usuarioLogado?.id
+        ? [
+            ...tarefasApi.map((tarefa) => ({
+                ...tarefa, origemPersistencia: "api"
+            })),
 
-        ...tarefasApi.map((tarefa) => ({
-            ...tarefa,
-            origemPersistencia: "api"
-        })),
-
-        ...tarefasEquipesApi.map((tarefa) => ({
-            ...tarefa,
-            origemPersistencia: "api"
-        }))
-    ];
+            ...tarefasEquipesApi.map((tarefa) => ({
+                ...tarefa, origemPersistencia: "api"
+            }))
+        ] : [];
 
     const criarTarefa = async (dados) => {
         const ehTarefaEquipe = dados.equipeId !== null && dados.equipeId !== undefined;

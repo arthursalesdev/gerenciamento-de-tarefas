@@ -267,15 +267,22 @@ export function MembrosProvider({ children }) {
     };
 
     const buscarMembrosDaEquipe = (equipeId) => {
-        const equipeReal = equipesApi.some((equipe) => String(equipe.id) === String(equipeId));
-        const origem = equipeReal ? membrosApi : membros;
-        return origem.filter((membro) => String(membro.equipeId) === String(equipeId));
+        if (!usuarioLogado?.id) {
+            return [];
+        }
+
+        return membrosApi.filter((membro) => String(membro.equipeId) === String(equipeId));
     };
 
     const buscarEquipesDoUsuario = (usuarioId) => {
-        const equipesReais = membrosApi.filter((membro) => String(membro.usuarioId) === String(usuarioId)).map((membro) => membro.equipeId);
-        const equipesLocais = membros.filter((membro) => String(membro.usuarioId) === String(usuarioId)).map((membro) => membro.equipeId);
-        return [...new Set([...equipesReais, ...equipesLocais])];
+        if (!usuarioLogado?.id ||
+            String(usuarioLogado.id) !== String(usuarioId)) {
+            return [];
+        }
+
+        return [
+            ...new Set(membrosApi.filter((membro) => String(membro.usuarioId) === String(usuarioId)).map((membro) => membro.equipeId))
+        ];
     };
 
     const buscarMembro = (usuarioId, equipeId) => {
