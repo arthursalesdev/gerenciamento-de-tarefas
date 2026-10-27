@@ -92,7 +92,6 @@ export function TarefasProvider({ children }) {
         };
     }, [usuarioLogado?.id, verificandoSessao]);
 
-
     useEffect(() => {
         if (verificandoSessao) return;
 

@@ -84,12 +84,6 @@ function Tarefas() {
         return equipe?.nome || "Equipe";
     };
 
-    console.log("tarefas:", tarefas);
-    console.log("é array?", Array.isArray(tarefas));
-    console.log("areaPessoalAtiva:", areaPessoalAtiva);
-    console.log("usuarioLogado:", usuarioLogado);
-    console.log("areaAtual:", areaAtual);
-
     const tarefasDaArea = areaPessoalAtiva
         ? tarefas.filter((tarefa) => {
             if (tarefa.equipeId != null) {
@@ -100,7 +94,8 @@ function Tarefas() {
         })
         : tarefas.filter((tarefa) => String(tarefa.equipeId) === String(areaAtual.equipeId));
 
-    const buscarUsuario = (usuarioId) => {
+
+    const buscarUsuario = (usuarioId, equipeId = null) => {
         if (usuarioId === null || usuarioId === undefined) {
             return null;
         }
@@ -109,19 +104,24 @@ function Tarefas() {
             return usuarioLogado;
         }
 
-        const membro = membrosDaEquipe.find((item) => String(item.usuarioId) === String(usuarioId));
+        if (equipeId != null) {
+            const membro = buscarMembrosDaEquipe(equipeId).find((item) => String(item.usuarioId) === String(usuarioId));
 
-        return (membro?.usuario || usuarios.find((usuario) => String(usuario.id) === String(usuarioId)) || null);
+            if (membro?.usuario) {
+                return membro.usuario;
+            }
+        }
+
+        return usuarios.find((usuario) => String(usuario.id) === String(usuarioId)) || null;
     };
 
     const buscarResponsavel = (tarefa) => {
-        const responsavelId = tarefa.responsavelId ?? (tarefa.origemPersistencia === "local" ? tarefa.usuarioId : null);
+        const responsavelId =
+            tarefa.responsavelId ??
+            (tarefa.origemPersistencia === "local"
+                ? tarefa.usuarioId : null);
 
-        if (usuarioLogado && String(usuarioLogado.id) === String(responsavelId)) {
-            return usuarioLogado;
-        }
-
-        return buscarUsuario(responsavelId);
+        return buscarUsuario(responsavelId, tarefa.equipeId);
     };
 
     const abrirModalCriar = () => {
@@ -238,10 +238,10 @@ function Tarefas() {
                 </Stack>
             </Container>
             <ModalTarefa
-                aberto={modalAberto} aoFechar={() => setModalAberto(false)} modo={modoModal} tarefaSelecionada={tarefaSelecionada} responsaveis={responsaveisDoModal} areaPessoal={equipeDoModal == null} podeEditar={podeEditarNoModal} 
-                podeAlterarStatus={tarefaEditadaDeEquipe ? podeEditarNoModal : pode("alterarStatus")} 
-                podeAlterarResponsavel={ equipeDoModal != null ? podeAdministrarResponsavel : pode("alterarResponsavel")}
-                podeAlterarData={ tarefaEditadaDeEquipe ? podeEditarNoModal : pode("alterarData")}
+                aberto={modalAberto} aoFechar={() => setModalAberto(false)} modo={modoModal} tarefaSelecionada={tarefaSelecionada} responsaveis={responsaveisDoModal} areaPessoal={equipeDoModal == null} podeEditar={podeEditarNoModal}
+                podeAlterarStatus={tarefaEditadaDeEquipe ? podeEditarNoModal : pode("alterarStatus")}
+                podeAlterarResponsavel={equipeDoModal != null ? podeAdministrarResponsavel : pode("alterarResponsavel")}
+                podeAlterarData={tarefaEditadaDeEquipe ? podeEditarNoModal : pode("alterarData")}
 
                 aoSalvar={async (dados) => {
                     if (modoModal === "editar") {
