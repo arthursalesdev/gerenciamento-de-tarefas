@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { Box, Button, Dialog, DialogContent, IconButton, Stack, TextField, Typography } from "@mui/material";
+import { Box, Button, Dialog, DialogContent, IconButton, InputAdornment, Stack, TextField, Typography } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 
 import { useAuth } from "../../context/authContext";
 
@@ -18,6 +20,8 @@ function ModalAuth({ aberto, aoFechar, modoInicial = "login" }) {
     const [email, setEmail] = useState("");
     const [senha, setSenha] = useState("");
     const [confirmarSenha, setConfirmarSenha] = useState("");
+    const [mostrarSenha, setMostrarSenha] = useState(false);
+    const [mostrarConfirmarSenha, setMostrarConfirmarSenha] = useState(false);
 
     const [erros, setErros] = useState({});
     const [mensagemErro, setMensagemErro] = useState("");
@@ -38,6 +42,8 @@ function ModalAuth({ aberto, aoFechar, modoInicial = "login" }) {
         setErros({});
         setMensagemErro("");
         setNomeUsuario("");
+        setMostrarSenha(false);
+        setMostrarConfirmarSenha(false);
     };
 
     const validarEmail = (valor) => {
@@ -152,6 +158,8 @@ function ModalAuth({ aberto, aoFechar, modoInicial = "login" }) {
         setMensagemErro("");
         setSenha("");
         setConfirmarSenha("");
+        setMostrarSenha(false);
+        setMostrarConfirmarSenha(false);
     };
 
     const fechar = () => {
@@ -198,14 +206,39 @@ function ModalAuth({ aberto, aoFechar, modoInicial = "login" }) {
                     />
 
                     <TextField
-                        label="Senha" type="password" value={senha} onChange={(event) => setSenha(event.target.value)}
+                        label="Senha" type={mostrarSenha ? "text" : "password"} value={senha} onChange={(event) => setSenha(event.target.value)}
                         error={Boolean(erros.senha)} helperText={erros.senha} fullWidth
+                        slotProps={{
+                            input: {
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <IconButton aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"} onClick={() => setMostrarSenha((valor) => !valor)} edge="end">
+                                            {mostrarSenha ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                                        </IconButton>
+                                    </InputAdornment>
+                                )
+                            }
+                        }}
                     />
 
                     {modo === "cadastro" && (
                         <TextField
-                            label="Confirmar senha" type="password" value={confirmarSenha} onChange={(event) => setConfirmarSenha(event.target.value)}
+                            label="Confirmar senha" type={mostrarConfirmarSenha ? "text" : "password"} value={confirmarSenha} onChange={(event) => setConfirmarSenha(event.target.value)}
                             error={Boolean(erros.confirmarSenha)} helperText={erros.confirmarSenha} fullWidth
+                            slotProps={{
+                                input: {
+                                    endAdornment: (
+                                        <InputAdornment position="end">
+                                            <IconButton
+                                                aria-label={mostrarConfirmarSenha ? "Ocultar confirmação de senha" : "Mostrar confirmação de senha"}
+                                                onClick={() => setMostrarConfirmarSenha((valor) => !valor)} edge="end"
+                                            >
+                                                {mostrarConfirmarSenha ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                                            </IconButton>
+                                        </InputAdornment>
+                                    )
+                                }
+                            }}
                         />
                     )}
                 </Stack>

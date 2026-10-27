@@ -14,6 +14,8 @@ import { useAuth } from "../../context/authContext";
 import { useMembros } from "../../context/membrosContext";
 import { useCargos } from "../../context/cargosContext";
 
+import api from "../../services/api";
+
 function SeletorArea() {
     const [aberto, setAberto] = useState(null);
     const [modalEquipeAberto, setModalEquipeAberto] = useState(false);
@@ -23,7 +25,7 @@ function SeletorArea() {
     const { areaAtual, irParaPessoal, irParaEquipe } = useArea();
     const { equipes, criarEquipe, recarregarEquipes } = useEquipes();
     const { usuarioLogado } = useAuth();
-    const { adicionarMembro, buscarEquipesDoUsuario, buscarMembro, removerMembro } = useMembros();
+    const { adicionarMembro, buscarEquipesDoUsuario, buscarMembro, carregandoMembros, buscarMembrosDaEquipe, removerMembro } = useMembros();
     const { buscarCargoPorId } = useCargos();
 
     const buscarCargoUsuario = (equipeId) => {
@@ -46,6 +48,9 @@ function SeletorArea() {
     const menuAberto = Boolean(aberto);
     const idsEquipesUsuario = usuarioLogado ? buscarEquipesDoUsuario(usuarioLogado.id) : [];
     const equipesUsuario = equipes.filter((equipe) => idsEquipesUsuario.some((equipeId) => String(equipeId) === String(equipe.id)));
+
+    const membroAtual = areaAtual.tipo === "equipe" ? buscarMembro(usuarioLogado?.id, areaAtual.equipeId) : null;
+    const donoSozinho = !carregandoMembros && membroAtual?.cargoId === "dono" && buscarMembrosDaEquipe(areaAtual.equipeId).length === 1;
 
     const abrirCriarEquipe = () => {
         fecharMenu();
@@ -122,6 +127,34 @@ function SeletorArea() {
         }
     };
 
+    const excluirEquipeSozinho = async () => {
+        if (saindoDaEquipe || !donoSozinho) return;
+
+        const confirmou = window.confirm(
+            `Deseja excluir a equipe "${areaAtual.nome}"? ` +
+            "Todas as tarefas e históricos vinculados a ela serão excluídos " +
+            "Esta ação não pode ser desfeita"
+        );
+
+        if (!confirmou) return;
+
+        setSaindoDaEquipe(true);
+        setErroSaida("");
+
+        try {
+            await api.delete(`/equipes/${areaAtual.equipeId}`);
+
+            irParaPessoal();
+            fecharMenu();
+
+            await recarregarEquipes();
+        } catch (error) {
+            setErroSaida(error.response?.data?.message || error.response?.data?.mensagem || "Não foi possível excluir a equipe");
+        } finally {
+            setSaindoDaEquipe(false);
+        }
+    };
+
     return (
         <>
             <Button variant="text" onClick={abrirMenu} endIcon={<KeyboardArrowDownIcon sx={{ color: "primary.main" }} />} sx={{ color: "#F1F1EF", fontSize: 13, px: 1.5, minWidth: 0, "&:hover": { bgcolor: "rgba(255,255,255,0.07)" } }}>
@@ -177,16 +210,28 @@ function SeletorArea() {
                     })() && (
                         <>
                             <Divider sx={{ my: 1 }} />
-
                             <MenuItem onClick={sairDaEquipe} disabled={saindoDaEquipe} sx={{ color: "error.main" }}>
                                 <LogoutOutlinedIcon sx={{ mr: 1.5, fontSize: 19 }} />
-
                                 <Typography variant="body2">
                                     {saindoDaEquipe ? "Saindo da equipe..." : "Sair da equipe"}
                                 </Typography>
                             </MenuItem>
                         </>
                     )}
+
+
+                {donoSozinho && (
+                    <>
+                        <Divider sx={{ my: 1 }} />
+                        <MenuItem onClick={excluirEquipeSozinho} disabled={saindoDaEquipe} sx={{ color: "error.main" }}>
+                            <LogoutOutlinedIcon sx={{ mr: 1.5, fontSize: 19 }} />
+                            <Typography variant="body2">
+                                {saindoDaEquipe ? "Excluindo equipe..." : "Excluir equipe"}
+                            </Typography>
+                        </MenuItem>
+                    </>
+                )}
+
 
                 <Divider sx={{ my: 1 }} />
 
