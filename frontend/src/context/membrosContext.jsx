@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 
 import api from "../services/api";
 import { useAuth } from "./authContext";
@@ -11,6 +11,10 @@ const CHAVE_MEMBROS = "membrosEquipes";
 export function MembrosProvider({ children }) {
     const { transferirDono, equipesApi } = useEquipes();
     const { usuarioLogado } = useAuth();
+    const usuarioAtualRef = useRef(usuarioLogado?.id);
+    const requisicaoMembrosRef = useRef(0);
+
+    usuarioAtualRef.current = usuarioLogado?.id;
 
     const [membrosApi, setMembrosApi] = useState([]);
     const [carregandoMembros, setCarregandoMembros] = useState(false);
@@ -111,6 +115,12 @@ export function MembrosProvider({ children }) {
 
     const recarregarMembros = useCallback(async (equipesAtualizadas) => {
         const listaEquipes = equipesAtualizadas ?? equipesApi;
+        const usuarioDaConsulta = usuarioLogado?.id;
+        const requisicao = ++requisicaoMembrosRef.current;
+
+        const consultaAtual = () =>
+            requisicao === requisicaoMembrosRef.current &&
+            String(usuarioAtualRef.current) === String(usuarioDaConsulta);
 
         if (!usuarioLogado?.id || !listaEquipes.length) {
             setMembrosApi([]);
@@ -159,18 +169,29 @@ export function MembrosProvider({ children }) {
                         ? usuarioLogado : null)
             }));
 
-            setMembrosApi(membrosComUsuarios);
+            if (consultaAtual()) {
+                setMembrosApi(membrosComUsuarios);
+            }
 
             return membrosComUsuarios;
         } catch (error) {
-            setErroMembros(error.response?.data?.message || error.response?.data?.mensagem || "Não foi possível carregar os membros");
-            throw error;
+            if (consultaAtual()) {
+                setErroMembros(error.response?.data?.message || error.response?.data?.mensagem || "Não foi possível carregar os membros");
+                throw error;
+            }
+
+            return [];
         } finally {
-            setCarregandoMembros(false);
+            if (consultaAtual()) {
+                setCarregandoMembros(false);
+            }
         }
     }, [usuarioLogado?.id, equipesApi]);
 
     useEffect(() => {
+        requisicaoMembrosRef.current += 1;
+        setCarregandoMembros(false);
+        
         if (!usuarioLogado?.id || !equipesApi.length) {
             setMembrosApi([]);
             setErroMembros("");

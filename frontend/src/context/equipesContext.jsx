@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { useAuth } from "./authContext";
 import api from "../services/api";
 
@@ -8,6 +8,10 @@ const equipesIniciais = [];
 
 export function EquipesProvider({ children }) {
     const { usuarioLogado } = useAuth();
+    const usuarioAtualRef = useRef(usuarioLogado?.id);
+    const requisicaoEquipesRef = useRef(0);
+
+    usuarioAtualRef.current = usuarioLogado?.id;
 
     const [equipesApi, setEquipesApi] = useState([]);
     const [carregandoEquipes, setCarregandoEquipes] = useState(false);
@@ -22,12 +26,16 @@ export function EquipesProvider({ children }) {
         localStorage.setItem(CHAVE_EQUIPES, JSON.stringify(equipes));
     }, [equipes]);
 
-
     const recarregarEquipes = useCallback(async () => {
-        if (!usuarioLogado?.id) {
+        const usuarioDaConsulta = usuarioLogado?.id;
+        const requisicao = ++requisicaoEquipesRef.current;
+
+        if (!usuarioDaConsulta) {
             setEquipesApi([]);
             return [];
         }
+
+        const consultaAtual = () => requisicao === requisicaoEquipesRef.current && String(usuarioAtualRef.current) === String(usuarioDaConsulta);
 
         setCarregandoEquipes(true);
         setErroEquipes("");
@@ -35,14 +43,27 @@ export function EquipesProvider({ children }) {
         try {
             const resposta = await api.get("/equipes");
             const dados = resposta.data;
-            const lista = Array.isArray(dados) ? dados : Array.isArray(dados.equipes) ? dados.equipes : [];
-            setEquipesApi(lista);
-            return lista;
+            const lista = Array.isArray(dados)
+                ? dados
+                : Array.isArray(dados?.equipes)
+                    ? dados.equipes : [];
+
+            if (consultaAtual()) {
+                setEquipesApi(lista);
+            }
+
+            return consultaAtual() ? lista : [];
         } catch (error) {
-            setErroEquipes(error.response?.data?.message || error.response?.data?.mensagem || "Não foi possível carregar as equipes");
-            throw error;
+            if (consultaAtual()) {
+                setErroEquipes(error.response?.data?.message || error.response?.data?.mensagem || "Não foi possível carregar as equipes");
+                throw error;
+            }
+
+            return [];
         } finally {
-            setCarregandoEquipes(false);
+            if (consultaAtual()) {
+                setCarregandoEquipes(false);
+            }
         }
     }, [usuarioLogado?.id]);
 
@@ -50,6 +71,8 @@ export function EquipesProvider({ children }) {
         if (!usuarioLogado?.id) {
             setEquipesApi([]);
             setErroEquipes("");
+            requisicaoEquipesRef.current += 1;
+            setCarregandoEquipes(false);
             return;
         }
 
