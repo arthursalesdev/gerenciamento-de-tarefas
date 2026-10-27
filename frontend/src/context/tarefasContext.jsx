@@ -1,6 +1,9 @@
 import { createContext, useContext, useEffect, useState } from "react";
+
 import api from "../services/api";
 import { useAuth } from "./authContext";
+import { useEquipes } from "./equipesContext";
+import { useMembros } from "./membrosContext";
 
 const TarefasContext = createContext();
 const CHAVE_TAREFAS = "tarefas";
@@ -37,6 +40,8 @@ function mensagemErro(error) {
 
 export function TarefasProvider({ children }) {
     const { usuarioLogado, verificandoSessao } = useAuth();
+    const { equipesApi } = useEquipes();
+    const { membrosApi } = useMembros();
 
     const [tarefasLocais, setTarefasLocais] = useState(lerTarefasLocais);
     const [tarefasApi, setTarefasApi] = useState([]);
@@ -87,6 +92,7 @@ export function TarefasProvider({ children }) {
         };
     }, [usuarioLogado?.id, verificandoSessao]);
 
+
     useEffect(() => {
         if (verificandoSessao) return;
 
@@ -98,42 +104,55 @@ export function TarefasProvider({ children }) {
         let ativo = true;
 
         async function carregarTarefasEquipes() {
-            try {
-                const respostaEquipes = await api.get("/equipes");
-                const dadosEquipes = respostaEquipes.data;
-                const equipes = Array.isArray(dadosEquipes)
-                    ? dadosEquipes
-                    : Array.isArray(dadosEquipes.equipes)
-                        ? dadosEquipes.equipes
-                        : [];
+            const minhasEquipes = equipesApi.filter((equipe) =>
+                membrosApi.some(
+                    (membro) =>
+                        String(membro.equipeId) === String(equipe.id) &&
+                        String(membro.usuarioId) === String(usuarioLogado.id)
+                )
+            );
 
-                const respostasTarefas = await Promise.all(equipes.map((equipe) => api.get(`/equipes/${equipe.id}/tarefas`)));
-                const tarefasCompartilhadas = respostasTarefas.flatMap(
-                    (resposta, indice) => {
-                        const dados = resposta.data;
+            if (!minhasEquipes.length) {
+                setTarefasEquipesApi([]);
+                return;
+            }
 
-                        const lista = Array.isArray(dados)
-                            ? dados
-                            : Array.isArray(dados.tarefas)
-                                ? dados.tarefas
-                                : [];
+            const resultados = await Promise.allSettled(minhasEquipes.map((equipe) => api.get(`/equipes/${equipe.id}/tarefas`)));
 
-                        return lista.map((tarefa) =>
-                            normalizarTarefa({
-                                ...tarefa,
-                                equipeId: equipes[indice].id
-                            })
-                        );
-                    }
+            if (!ativo) return;
+
+            const tarefasCompartilhadas = [];
+            let houveErro = false;
+
+            resultados.forEach((resultado, indice) => {
+                if (resultado.status === "rejected") {
+                    houveErro = true;
+                    return;
+                }
+
+                const dados = resultado.value.data;
+
+                const lista = Array.isArray(dados)
+                    ? dados
+                    : Array.isArray(dados?.tarefas)
+                        ? dados.tarefas : [];
+
+                tarefasCompartilhadas.push(
+                    ...lista.map((tarefa) =>
+                        normalizarTarefa({
+                            ...tarefa,
+                            equipeId: minhasEquipes[indice].id
+                        })
+                    )
                 );
+            });
 
-                if (ativo) {
-                    setTarefasEquipesApi(tarefasCompartilhadas);
-                }
-            } catch (error) {
-                if (ativo) {
-                    setErroTarefas(mensagemErro(error));
-                }
+            setTarefasEquipesApi(tarefasCompartilhadas);
+
+            if (houveErro) {
+                setErroTarefas("Não foi possível atualizar as tarefas de uma ou mais equipes");
+            } else {
+                setErroTarefas("");
             }
         }
 
@@ -142,7 +161,7 @@ export function TarefasProvider({ children }) {
         return () => {
             ativo = false;
         };
-    }, [usuarioLogado?.id, verificandoSessao]);
+    }, [usuarioLogado?.id, verificandoSessao, equipesApi, membrosApi]);
 
     const tarefas = [
         ...tarefasLocais.map((tarefa) => ({
