@@ -55,12 +55,16 @@ function Painel() {
     };
 
     const buscarNomeUsuario = (usuarioId) => {
-        if (!usuarioId) {
+        if (usuarioId == null) {
             return "Sem responsável";
         }
 
-        const usuario = usuarios.find((usuario) => String(usuario.id) === String(usuarioId));
-        return usuario?.nome || "Usuário";
+        if (String(usuarioLogado?.id) === String(usuarioId)) {
+            return usuarioLogado.nome;
+        }
+
+        const membro = buscarMembrosDaEquipe(areaAtual?.equipeId).find((item) => String(item.usuarioId) === String(usuarioId));
+        return membro?.usuario?.nome || "Usuário";
     };
 
     const buscarOrigemTarefa = (tarefa) => {
@@ -73,7 +77,13 @@ function Painel() {
     };
 
     const tarefasDaArea = areaPessoalAtiva
-        ? tarefas.filter((tarefa) => String(tarefa.usuarioId) === String(usuarioLogado?.id))
+        ? tarefas.filter((tarefa) => {
+            if (tarefa.equipeId != null) {
+                return String(tarefa.responsavelId) === String(usuarioLogado?.id);
+            }
+
+            return String(tarefa.usuarioId) === String(usuarioLogado?.id);
+        })
         : tarefas.filter((tarefa) => String(tarefa.equipeId) === String(areaAtual?.equipeId));
 
     const tarefasPendentes = tarefasDaArea.filter((tarefa) => tarefa.status === "pendente");
@@ -104,13 +114,13 @@ function Painel() {
     );
 
     const tarefasAtencao = [...tarefasAtrasadas, ...tarefasVencemHoje, ...tarefasProximas].sort((a, b) => obterDataLocal(a.dataLimite) - obterDataLocal(b.dataLimite));
-    const tarefasSemResponsavel = areaPessoalAtiva ? [] : tarefasAtivas.filter((tarefa) => !tarefa.usuarioId);
+    const tarefasSemResponsavel = areaPessoalAtiva ? [] : tarefasAtivas.filter((tarefa) => tarefa.responsavelId == null);
     const tarefasAtencaoEquipe = [...tarefasAtencao, ...tarefasSemResponsavel.filter((tarefa) => !tarefasAtencao.some((item) => item.id === tarefa.id))];
     const tarefasAtencaoVisiveis = (areaPessoalAtiva ? tarefasAtencao : tarefasAtencaoEquipe).slice(0, 5);
 
     const origensTarefas = areaPessoalAtiva
         ? tarefasAtivas.reduce(
-            (origens, tarefa) => { 
+            (origens, tarefa) => {
                 const idOrigem = tarefa.equipeId ? `equipe-${tarefa.equipeId}` : "pessoal";
                 const origemExistente = origens.find((origem) => origem.id === idOrigem);
 
@@ -119,7 +129,7 @@ function Painel() {
                     return origens;
                 }
 
-                origens.push({id: idOrigem, nome: buscarOrigemTarefa(tarefa), quantidade: 1});
+                origens.push({ id: idOrigem, nome: buscarOrigemTarefa(tarefa), quantidade: 1 });
                 return origens;
             },
             []
@@ -131,25 +141,27 @@ function Painel() {
 
     const cargaMembros = !areaPessoalAtiva
         ? membrosEquipe.map((membro) => {
-            const usuario = usuarios.find((usuario) => String(usuario.id) === String(membro.usuarioId));
-            const quantidade = tarefasAtivas.filter((tarefa) => String(tarefa.usuarioId) === String(membro.usuarioId)).length;
-            return { id: membro.usuarioId, usuario, nome: usuario?.nome || "Usuário", quantidade };
-        })
-        : [];
+            const usuario = membro.usuario || (String(membro.usuarioId) === String(usuarioLogado?.id) ? usuarioLogado : null);
+            const quantidade = tarefasAtivas.filter((tarefa) => String(tarefa.responsavelId) === String(membro.usuarioId)).length;
+
+            return {
+                id: membro.usuarioId, usuario, nome: usuario?.nome || "Usuário", quantidade
+            };
+        }) : [];
 
     cargaMembros.sort((a, b) => b.quantidade - a.quantidade);
 
-    const quantidadeSemResponsavel = areaPessoalAtiva ? 0 : tarefasAtivas.filter((tarefa) => !tarefa.usuarioId).length;
+    const quantidadeSemResponsavel = tarefasSemResponsavel.length;
     const cargaEquipe = [...cargaMembros];
 
     if (quantidadeSemResponsavel > 0) {
-        cargaEquipe.push({id: "sem-responsavel", nome: "Sem responsável", quantidade: quantidadeSemResponsavel});
+        cargaEquipe.push({ id: "sem-responsavel", nome: "Sem responsável", quantidade: quantidadeSemResponsavel });
     }
 
     return (
         <Box sx={{ minHeight: "100vh", bgcolor: "background.default", color: "text.primary", transition: "background-color 0.2s ease" }}>
             <Navbar />
-            <Box sx={{height: { xs: 100, md: 110 }}}/>
+            <Box sx={{ height: { xs: 100, md: 110 } }} />
             <Container maxWidth="xl" sx={{ mt: { xs: 2.5, md: 4 }, mb: { xs: 3, md: 4 }, px: { xs: 2, sm: 3 } }}>
                 <Typography variant="h4" component="h1" sx={{ fontSize: { xs: "1.65rem", sm: "2.1rem", md: "2.4rem" }, mb: { xs: 2, md: 2.5 }, overflowWrap: "anywhere" }}>
                     Painel ·{" "}

@@ -1,14 +1,19 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import { useAuth } from "./authContext";
 
 const AreaContext = createContext();
 const CHAVE_AREA = "areaAtual";
 const areaPessoal = { tipo: "pessoal", equipeId: null, nome: "Minhas Tarefas" };
 
 export function AreaProvider({ children }) {
-    const [areaAtual, setAreaAtual] = useState(() => {
-        const areaSalva = localStorage.getItem(CHAVE_AREA);
-        return areaSalva ? JSON.parse(areaSalva) : areaPessoal;
-    });
+    const { usuarioLogado, verificandoSessao } = useAuth();
+    const [areaAtual, setAreaAtual] = useState(areaPessoal);
+
+    useEffect(() => {
+        if (verificandoSessao) return;
+
+        setAreaAtual(areaPessoal);
+    }, [usuarioLogado?.id, verificandoSessao]);
 
     useEffect(() => {
         localStorage.setItem(CHAVE_AREA, JSON.stringify(areaAtual));
@@ -19,7 +24,7 @@ export function AreaProvider({ children }) {
     };
 
     const irParaEquipe = (equipe) => {
-        setAreaAtual({tipo: "equipe", equipeId: equipe.id, nome: equipe.nome});
+        setAreaAtual({ tipo: "equipe", equipeId: equipe.id, nome: equipe.nome });
     };
 
     const areaPessoalAtiva = areaAtual.tipo === "pessoal";

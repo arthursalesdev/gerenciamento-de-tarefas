@@ -75,7 +75,7 @@ function CardAtencao({
                 <Stack divider={<Divider flexItem />} spacing={0} >
                     {tarefas.map((tarefa) => {
                         const situacao = obterSituacao(tarefa);
-                        const informacao = areaPessoalAtiva ? buscarOrigem(tarefa) : buscarResponsavel(tarefa.usuarioId);
+                        const informacao = areaPessoalAtiva ? buscarOrigem(tarefa) : buscarResponsavel(tarefa.responsavelId);
 
                         return (
                             <Box key={tarefa.id} sx={{ py: 1.1, minWidth: 0 }}>
