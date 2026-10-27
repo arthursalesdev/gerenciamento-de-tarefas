@@ -11,6 +11,7 @@
 # Arthur (ID 1) e DONO da equipe 2.
 # Joao (ID 2) e LIDER da equipe 2.
 # Maria (ID 3) e uma usuaria cadastrada.
+# Para os testes de cargos, ela deve aceitar o convite para entrar na equipe.
 # As credenciais estao em .vscode/settings.json.
 #
 # ATENCAO:
@@ -66,32 +67,41 @@ Authorization: Bearer {{loginDono.response.body.$.token}}
 
 
 # ============================================================
-# ADICAO DE MEMBROS
+# ENTRADA NA EQUIPE POR CONVITE
 # ============================================================
 
-### [MEM-02] DONO adiciona Maria à equipe
+### [CONVITE-01] DONO envia convite para Maria
 # Esperado: 201 Created
-# Executar somente se Maria ainda não pertencer à equipe.
-# @name adicionarMaria
-POST {{baseUrl}}/equipes/{{equipeId}}/membros
+# Maria deve estar fora da equipe e não ter convite pendente.
+# @name conviteMaria
+POST {{baseUrl}}/convites-equipes
 Authorization: Bearer {{loginDono.response.body.$.token}}
 Content-Type: application/json
 
 {
-    "usuarioId": {{usuarioMariaId}}
+    "equipeId": {{equipeId}},
+    "convidadoId": {{usuarioMariaId}},
+    "cargo": "MEMBRO"
 }
 
-### [MEM-03] Impedir adição duplicada de Maria
+### [CONVITE-02] Impedir convite pendente duplicado
 # Esperado: 409 Conflict
-# Executar depois de MEM-02, ou se Maria já for membro.
-POST {{baseUrl}}/equipes/{{equipeId}}/membros
+# Execute depois de CONVITE-01 e antes de Maria aceitar.
+POST {{baseUrl}}/convites-equipes
 Authorization: Bearer {{loginDono.response.body.$.token}}
 Content-Type: application/json
 
 {
-    "usuarioId": {{usuarioMariaId}}
+    "equipeId": {{equipeId}},
+    "convidadoId": {{usuarioMariaId}},
+    "cargo": "MEMBRO"
 }
 
+### [CONVITE-03] Maria aceita o convite
+# Esperado: 200 OK
+# Execute depois de CONVITE-01.
+PATCH {{baseUrl}}/convites-equipes/{{conviteMaria.response.body.$.id}}/aceitar
+Authorization: Bearer {{loginVisualizador.response.body.$.token}}
 
 # ============================================================
 # ALTERACAO DE CARGOS
@@ -168,62 +178,6 @@ Content-Type: application/json
     "cargo": "DONO"
 }
 
-
-# ============================================================
-# VALIDACOES DE DADOS
-# ============================================================
-
-### [VALIDACAO-01] Adicionar membro com ID negativo
-# Esperado: 400 Bad Request
-POST {{baseUrl}}/equipes/{{equipeId}}/membros
-Authorization: Bearer {{loginDono.response.body.$.token}}
-Content-Type: application/json
-
-{
-    "usuarioId": -1
-}
-
-### [VALIDACAO-02] Adicionar membro com ID zero
-# Esperado: 400 Bad Request
-POST {{baseUrl}}/equipes/{{equipeId}}/membros
-Authorization: Bearer {{loginDono.response.body.$.token}}
-Content-Type: application/json
-
-{
-    "usuarioId": 0
-}
-
-### [VALIDACAO-03] Adicionar membro com ID booleano
-# Esperado: 400 Bad Request
-POST {{baseUrl}}/equipes/{{equipeId}}/membros
-Authorization: Bearer {{loginDono.response.body.$.token}}
-Content-Type: application/json
-
-{
-    "usuarioId": true
-}
-
-### [VALIDACAO-04] Adicionar membro com ID decimal
-# Esperado: 400 Bad Request
-POST {{baseUrl}}/equipes/{{equipeId}}/membros
-Authorization: Bearer {{loginDono.response.body.$.token}}
-Content-Type: application/json
-
-{
-    "usuarioId": 1.5
-}
-
-### [VALIDACAO-05] Adicionar membro com ID em branco
-# Esperado: 400 Bad Request
-POST {{baseUrl}}/equipes/{{equipeId}}/membros
-Authorization: Bearer {{loginDono.response.body.$.token}}
-Content-Type: application/json
-
-{
-    "usuarioId": "   "
-}
-
-
 # ============================================================
 # TRANSFERENCIA DE PROPRIEDADE
 # Executar em ordem, sem interromper.
@@ -270,15 +224,24 @@ Authorization: Bearer {{loginVisualizador.response.body.$.token}}
 DELETE {{baseUrl}}/equipes/{{equipeId}}/membros/{{donoId}}
 Authorization: Bearer {{loginLider.response.body.$.token}}
 
-### [PERMISSAO-02] LIDER adiciona Maria novamente
+### [CONVITE-04] LIDER envia novo convite para Maria
 # Esperado: 201 Created
-POST {{baseUrl}}/equipes/{{equipeId}}/membros
+# Execute após SAIDA-02.
+# @name novoConviteMaria
+POST {{baseUrl}}/convites-equipes
 Authorization: Bearer {{loginLider.response.body.$.token}}
 Content-Type: application/json
 
 {
-    "usuarioId": {{usuarioMariaId}}
+    "equipeId": {{equipeId}},
+    "convidadoId": {{usuarioMariaId}},
+    "cargo": "MEMBRO"
 }
+
+### [CONVITE-05] Maria aceita o novo convite
+# Esperado: 200 OK
+PATCH {{baseUrl}}/convites-equipes/{{novoConviteMaria.response.body.$.id}}/aceitar
+Authorization: Bearer {{loginVisualizador.response.body.$.token}}
 
 ### [PERMISSAO-03] LIDER remove Maria da equipe
 # Esperado: 204 No Content

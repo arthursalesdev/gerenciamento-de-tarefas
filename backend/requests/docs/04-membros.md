@@ -1,100 +1,110 @@
 # Roteiro de Testes — Membros de Equipe
 
-**Arquivo:** `membros.http`
+**Arquivo de requisições:** `backend/requests/membros.http`
+
+## Objetivo
+
+Validar a entrada de membros por convite, a consulta dos integrantes,
+as alterações de cargo, a transferência de propriedade e as regras de
+saída e remoção de membros.
 
 ## Pré-condições
 
-- Arthur (ID 1) é DONO da equipe 2.
-- João (ID 2) é LIDER da equipe 2.
-- Maria (ID 3) possui cadastro válido.
-- Maria deve estar fora da equipe 2 antes de `MEM-02`.
-- Após `MEM-02`, Maria deve estar como MEMBRO para executar `CARGO-01`.
+Antes de iniciar, confira os IDs e as credenciais configurados no
+`membros.http`. Os exemplos abaixo usam:
 
-Este arquivo deve ser executado após `tarefas.http`, pois remove Maria da equipe utilizada nos testes de tarefas.
+- Arthur, ID `1`, como **DONO** da equipe.
+- João, ID `2`, como **LIDER** da equipe.
+- Maria, ID `3`, com uma conta cadastrada.
+- Equipe com ID `2`.
 
-## Ordem de execução
+Para iniciar os testes de convite, Maria deve estar **fora da equipe** e
+não pode ter um convite pendente para ela.
 
-### Etapa 1 — Autenticação
+> Os testes alteram o estado da equipe. Use um ambiente de testes e
+> execute as requisições na ordem indicada.
 
-| Ordem | Teste | Esperado |
-|---|---|---|
-| 1 | AUTH-01 | 200 |
-| 2 | AUTH-02 | 200 |
-| 3 | AUTH-03 | 200 |
+## 1. Autenticação e consulta
 
-### Etapa 2 — Consulta e adição
+| Teste | Cenário | Resultado esperado |
+| --- | --- | --- |
+| `AUTH-01` | Login como dono | `200` |
+| `AUTH-02` | Login como líder | `200` |
+| `AUTH-03` | Login como Maria | `200` |
+| `MEM-01` | Listar membros da equipe | `200` |
 
-| Ordem | Teste | Esperado |
-|---|---|---|
-| 4 | MEM-01 | 200 |
-| 5 | MEM-02 | 201 |
-| 6 | MEM-03 | 409 |
+Execute os três logins antes dos demais testes. As requisições seguintes
+utilizam os tokens retornados por eles.
 
-**Importante:** se Maria já estiver na equipe, `MEM-02` não poderá ser executado como teste de criação inédita sem uma preparação anterior.
+## 2. Entrada por convite
 
-### Etapa 3 — Alteração de cargos
+| Teste | Cenário | Resultado esperado |
+| --- | --- | --- |
+| `CONVITE-01` | Dono envia convite para Maria | `201` |
+| `CONVITE-02` | Tentar enviar outro convite pendente | `409` |
+| `CONVITE-03` | Maria aceita o convite | `200` |
 
-| Ordem | Teste | Esperado |
-|---|---|---|
-| 7 | CARGO-01 | 200 |
-| 8 | CARGO-02 | 200 |
-| 9 | PERM-01 | 403 |
-| 10 | PERM-02 | 200 |
-| 11 | PERM-03 | 403 |
-| 12 | PERM-04 | 400 |
-| 13 | PERM-05 | 400 |
+Execute `CONVITE-02` antes de `CONVITE-03`, enquanto o primeiro convite
+ainda está pendente.
 
-Após `PERM-02`, Maria deve estar como VISUALIZADOR.
+O teste de aceite utiliza o ID retornado por `CONVITE-01`. Após o aceite,
+Maria deve aparecer como **MEMBRO** da equipe.
 
-### Etapa 4 — Validações
+## 3. Alteração de cargos
 
-| Ordem | Teste | Esperado |
-|---|---|---|
-| 14 | VALIDACAO-01 | 400 |
-| 15 | VALIDACAO-02 | 400 |
-| 16 | VALIDACAO-03 | 400 |
-| 17 | VALIDACAO-04 | 400 |
-| 18 | VALIDACAO-05 | 400 |
+| Teste | Cenário | Resultado esperado |
+| --- | --- | --- |
+| `CARGO-01` | Dono promove Maria a líder | `200` |
+| `CARGO-02` | Dono altera Maria para membro | `200` |
+| `PERM-01` | Líder tenta alterar o cargo do dono | `403` |
+| `PERM-02` | Líder altera Maria para visualizador | `200` |
+| `PERM-03` | Visualizador tenta alterar o cargo do líder | `403` |
+| `PERM-04` | Líder tenta alterar o próprio cargo | `400` |
+| `PERM-05` | Dono tenta atribuir o cargo DONO diretamente | `400` |
 
-### Etapa 5 — Transferência de propriedade
+Após `PERM-02`, Maria deve estar com o cargo **VISUALIZADOR**. Esse
+estado é necessário para o teste `PERM-03`.
 
-| Ordem | Teste | Esperado |
-|---|---|---|
-| 19 | PROP-01 | 200 |
-| 20 | PROP-02 | 200 |
+## 4. Transferência de propriedade
 
-Executar em sequência. A segunda requisição deve devolver a propriedade a Arthur.
+| Teste | Cenário | Resultado esperado |
+| --- | --- | --- |
+| `PROP-01` | Arthur transfere a propriedade para João | `200` |
+| `PROP-02` | João devolve a propriedade para Arthur | `200` |
 
-### Etapa 6 — Saída e remoção
+Execute os dois testes em sequência. Ao final, Arthur deve voltar a ser
+**DONO** e João deve ser **LIDER**.
 
-| Ordem | Teste | Esperado |
-|---|---|---|
-| 21 | SAIDA-01 | 403 |
-| 22 | SAIDA-02 | 204 |
-| 23 | PERMISSAO-01 | 403 |
-| 24 | PERMISSAO-02 | 201 |
-| 25 | PERMISSAO-03 | 204 |
+## 5. Saída e remoção
 
-## Cuidados
+Execute esta etapa por último.
 
-- `SAIDA-02` remove Maria da equipe.
-- `PERMISSAO-02` depende da saída de Maria para testar uma nova adição.
-- `PERMISSAO-03` remove Maria novamente.
-- Não repetir `MEM-02` após uma adição bem-sucedida esperando outro `201`.
-- Os testes de alteração de cargo dependem do estado produzido pelas requisições anteriores.
+| Teste | Cenário | Resultado esperado |
+| --- | --- | --- |
+| `SAIDA-01` | Dono tenta sair da própria equipe | `403` |
+| `SAIDA-02` | Maria sai voluntariamente | `204` |
+| `PERMISSAO-01` | Líder tenta remover o dono | `403` |
+| `CONVITE-04` | Líder envia novo convite para Maria | `201` |
+| `CONVITE-05` | Maria aceita o novo convite | `200` |
+| `PERMISSAO-03` | Líder remove Maria da equipe | `204` |
+
+O teste `CONVITE-05` utiliza o ID retornado por `CONVITE-04`.
+Execute-o antes de `PERMISSAO-03`, pois Maria precisa estar novamente na
+equipe para ser removida.
 
 ## Estado final esperado
 
-- Arthur continua DONO.
-- João continua LIDER.
-- Maria não participa da equipe 2.
+- Arthur continua como **DONO**.
+- João continua como **LIDER**.
+- Maria não participa da equipe.
 
-## Preparação para repetir a bateria geral
+Para repetir a bateria, confirme o estado da equipe e dos convites antes
+de começar. Para outros testes que exijam Maria na equipe, envie um novo
+convite e aceite-o com a conta dela.
 
-Para executar novamente os testes de tarefas que exigem Maria como VISUALIZADOR, é necessário:
+## Cuidados
 
-1. Adicionar Maria à equipe 2.
-2. Alterar seu cargo para VISUALIZADOR.
-3. Confirmar sua participação na listagem de membros.
-
-Somente depois disso executar novamente os testes de tarefas.
+- Não coloque senhas reais diretamente no arquivo de requisições.
+- Os IDs e usuários são exemplos; ajuste-os ao banco de testes.
+- Não repita um convite esperando `201` se já houver outro pendente para a mesma pessoa e equipe.
+- A execução dos testes de cargo, saída e remoção depende do estado produzido pelas requisições anteriores.

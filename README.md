@@ -1,320 +1,172 @@
-# Gerenciamento de Tarefas
+# TaskFlow
 
-Sistema de gerenciamento de tarefas desenvolvido como atividade acadêmica, utilizando uma arquitetura em camadas e padrões de projeto para organizar as responsabilidades da aplicação.
+O TaskFlow é um sistema de gerenciamento de tarefas pessoais e de equipes. Ele reúne tarefas, prazos, responsáveis e indicadores em um só lugar, com autenticação e controle de acesso por cargo.
 
-O sistema permite autenticação de usuários e gerenciamento de tarefas, garantindo que cada usuário tenha acesso apenas às suas próprias tarefas.
-
-## Tecnologias
-
-### Backend
-
-- Node.js
-- Express
-- Drizzle ORM
-- PostgreSQL
-- JWT
-- bcrypt
-
-### Frontend (Em Desenvolvimento)
-
-- React
-- Vite
-
-### Infraestrutura
-
-- Docker
-- Docker Compose
-- PostgreSQL em container
-- Docker Volume para persistência dos dados
-
-## Arquitetura
-
-O backend foi organizado utilizando MVC e outros padrões para separar as responsabilidades da aplicação.
-
-```text
-backend/
-├── drizzle/
-│   └── migrations/
-│
-├── src/
-│   ├── controllers/
-│   ├── database/
-│   │   └── schemas/
-│   ├── dtos/
-│   ├── errors/
-│   ├── mappers/
-│   ├── middlewares/
-│   ├── repositories/
-│   ├── routes/
-│   ├── services/
-│   ├── app.js
-│   └── server.js
-│
-├── .dockerignore
-├── .env.example
-├── Dockerfile
-├── drizzle.config.js
-├── package.json
-└── package-lock.json
-```
-
-### Responsabilidades
-
-- **Schemas:** Definem a estrutura das tabelas do banco.
-- **Controllers:** Recebem as requisições HTTP e encaminham para a lógica da aplicação.
-- **DTOs:** Controlam e validam os dados que entram e saem da aplicação.
-- **Mappers:** Convertem dados entre diferentes formatos ou modelos.
-- **Errors:** Definem erros personalizados da API.
-- **Middlewares:** Executam verificações durante o fluxo das requisições, como autenticação e tratamento de erros.
-- **Repositories:** Concentram as operações de acesso ao banco através do ORM.
-- **Routes:** Definem os endpoints da API.
-- **Services:** Concentram as regras de negócio e coordenam a lógica da aplicação.
-- **Migrations:** Armazenam o histórico das alterações estruturais do banco.
+O projeto foi desenvolvido como atividade acadêmica, com foco na organização das responsabilidades da aplicação.
 
 ## Funcionalidades
 
-- Cadastro de usuários
-- Login e autenticação com JWT
-- Senhas armazenadas utilizando hash com bcrypt
-- Criação de tarefas
-- Listagem de tarefas
-- Busca de tarefa por ID
-- Atualização de tarefas
-- Exclusão lógica (soft delete)
-- Associação de tarefas ao usuário autenticado
-- Isolamento das tarefas entre usuários
-- Validação dos dados de entrada
-- Registro de logs das operações realizadas nas tarefas
-- Tratamento centralizado de exceções
+### Conta e autenticação
 
-## API
+- Cadastro e login com e-mail ou nome de usuário.
+- Autenticação com JWT e senhas armazenadas como hash com bcrypt.
+- Consulta ao perfil e identificação por nome de usuário e tag.
+- Alternância entre temas claro e escuro.
 
-A API implementa os principais métodos HTTP:
+### Tarefas pessoais
 
-| Método | Operação |
+- Criar, consultar, editar e excluir tarefas.
+- Organizar atividades por status, prioridade e prazo.
+- Acompanhar indicadores no painel.
+- Registrar operações em logs e utilizar exclusão lógica.
+
+### Equipes
+
+- Criar equipes e convidar pessoas pelo nome de usuário e tag.
+- Aceitar ou recusar convites recebidos.
+- Gerenciar membros e cargos conforme as permissões disponíveis.
+- Criar tarefas compartilhadas e atribuir responsáveis.
+- Transferir a propriedade da equipe e acompanhar indicadores no painel.
+
+Os cargos são **dono**, **líder**, **membro** e **visualizador**. As ações disponíveis dependem do cargo e das regras da API. O criador se torna dono da equipe; novos integrantes entram por convite.
+
+## Tecnologias
+
+| Área | Tecnologias |
 | --- | --- |
-| GET | Consultar tarefas |
-| POST | Criar recursos e autenticar usuários |
-| PUT | Atualizar tarefas |
-| DELETE | Excluir tarefas |
+| Front-end | React, Vite, Material UI, React Router e Axios |
+| Back-end | Node.js, Express, Drizzle ORM, JWT e bcrypt |
+| Banco de dados | PostgreSQL |
+| Infraestrutura | Docker e Docker Compose |
+| Documentação da API | Swagger UI |
 
-As rotas de tarefas são protegidas por autenticação JWT.
-
-Cada tarefa pertence a um usuário, portanto um usuário autenticado não consegue consultar, alterar ou excluir tarefas pertencentes a outro usuário.
-
-## Banco de Dados
-
-O projeto utiliza PostgreSQL através do Drizzle ORM.
-
-As principais tabelas são:
+## Estrutura do projeto
 
 ```text
-usuarios
-   │
-   │ 1:N
-   ▼
-tarefas
-   │
-   │ 1:N
-   ▼
-logs_tarefas
+gerenciamento-de-tarefas/
+├── backend/
+│   ├── drizzle/migrations/  # Alterações no banco
+│   ├── requests/            # Exemplos de requisições
+│   └── src/
+│       ├── controllers/     # Comunicação HTTP
+│       ├── database/        # Conexão e schemas
+│       ├── dtos/            # Validação e organização dos dados
+│       ├── errors/          # Erros personalizados
+│       ├── mappers/         # Conversão de respostas
+│       ├── middlewares/     # Autenticação e tratamento de erros
+│       ├── repositories/    # Acesso ao banco
+│       ├── routes/          # Rotas da API
+│       └── services/        # Regras de negócio
+├── frontend/
+│   └── src/
+│       ├── components/      # Componentes da interface
+│       ├── context/         # Estados e operações compartilhados
+│       ├── pages/           # Páginas da aplicação
+│       ├── routes/          # Proteção de rotas
+│       ├── services/        # Configuração da API
+│       └── theme/           # Configuração visual
+├── docker-compose.yml
+└── README.md
 ```
 
-As alterações estruturais do banco são controladas através das migrations do Drizzle.
+## Como executar localmente
 
-## Docker
+As instruções abaixo usam **Docker para a API e o PostgreSQL** e executam o front-end localmente. O Docker Compose não inicia o front-end.
 
-O ambiente Docker utiliza dois containers:
+### Pré-requisitos
 
-```text
-┌──────────────────────┐
-│         API          │
-│ Node.js + Express    │
-│ Drizzle ORM          │
-└──────────┬───────────┘
-           │
-           │ postgres:5432
-           ▼
-┌──────────────────────┐
-│     PostgreSQL       │
-│    PostgreSQL 13     │
-└──────────┬───────────┘
-           │
-           ▼
-     postgres_data
-    (Docker Volume)
-```
+- Git.
+- Docker e Docker Compose em funcionamento.
+- Node.js e npm compatíveis com as dependências do front-end.
 
-O Docker Compose é responsável por criar e conectar os serviços.
-
-O PostgreSQL possui um `healthcheck`, e a API aguarda o banco estar disponível antes de iniciar.
-
-## Persistência dos dados
-
-Os dados do PostgreSQL são armazenados no volume:
-
-```text
-postgres_data
-```
-
-Dessa forma, executar:
+### 1. Clone o repositório
 
 ```bash
-docker compose down
+git clone https://github.com/arthursalesdev/gerenciamento-de-tarefas.git
+cd gerenciamento-de-tarefas
+git checkout develop
 ```
 
-remove os containers, mas mantém os dados do banco.
+### 2. Configure as variáveis do Docker
 
-Para remover também o volume e seus dados:
+Na raiz do projeto, copie `.env.example` para um arquivo chamado `.env`. No PowerShell:
 
-```bash
-docker compose down -v
+```powershell
+Copy-Item .env.example .env
 ```
 
-> Atenção: o comando acima remove permanentemente os dados armazenados no volume.
-
-## Configuração
-
-Antes de iniciar o projeto, copie o arquivo:
-
-```text
-.env.example
-```
-
-para:
-
-```text
-.env
-```
-
-E configure as variáveis necessárias:
+Edite o novo `.env` e defina os valores:
 
 ```env
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=sua_senha
 POSTGRES_DB=gerenciamento_tarefas
-JWT_SECRET=sua_chave_secreta
+JWT_SECRET=uma_chave_secreta_para_seu_ambiente
 ```
 
-O arquivo `.env` não deve ser enviado para o GitHub.
+Não envie o arquivo `.env` ao repositório. As variáveis acima são usadas pelo Docker Compose; `backend/.env.example` é destinado à execução da API fora do Docker.
 
-## Executando com Docker
+### 3. Inicie a API e o banco
 
-Na raiz do projeto, execute:
+Na raiz do projeto:
 
 ```bash
 docker compose up -d --build
+docker compose ps
 ```
 
-Esse comando constrói a imagem da API e inicia os containers da API e do PostgreSQL em segundo plano.
-
-Para verificar os containers:
-
-```bash
-docker ps
-```
-
-O PostgreSQL deve aparecer com o status:
-
-```text
-healthy
-```
-
-## Migrations
-
-Com os containers em execução, aplique as migrations:
+O Compose aguarda o PostgreSQL ficar disponível antes de iniciar a API. Na primeira execução, e quando houver novas migrations, aplique-as:
 
 ```bash
 docker compose exec api npm run db:migrate
 ```
 
-Isso cria ou atualiza a estrutura das tabelas no PostgreSQL do container.
+### 4. Inicie o front-end
 
-## Portas
+Em outro terminal, a partir da raiz:
 
-| Serviço | Endereço |
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+Abra o endereço apresentado no terminal do Vite, normalmente `http://localhost:5173`.
+
+| Serviço | Endereço local padrão |
 | --- | --- |
-| API | `localhost:3000` |
-| PostgreSQL local | `localhost:5432` |
-| PostgreSQL Docker | `localhost:5433` |
+| Front-end | `http://localhost:5173` |
+| API | `http://localhost:3000` |
+| Documentação Swagger | `http://localhost:3000/api-docs` |
+| PostgreSQL do Docker | `localhost:5433` |
 
-Dentro da rede do Docker, a API acessa o banco através de:
+O front-end usa `http://localhost:3000` como endereço padrão da API. O back-end está configurado para permitir requisições de `http://localhost:5173`; se essas portas mudarem, ajuste a configuração correspondente.
 
-```text
-postgres:5432
-```
+### Encerrar o ambiente
 
-A porta `5433` é utilizada somente para acessar o PostgreSQL do container a partir do computador, por exemplo através do DBeaver.
-
-## Comandos Docker úteis
-
-Subir os containers:
-
-```bash
-docker compose up -d
-```
-
-Reconstruir a imagem e subir os containers:
-
-```bash
-docker compose up -d --build
-```
-
-Parar os containers sem removê-los:
-
-```bash
-docker compose stop
-```
-
-Parar e remover os containers:
+Na raiz, para parar e remover os containers:
 
 ```bash
 docker compose down
 ```
 
-Validar a configuração do Docker Compose:
-
-```bash
-docker compose config
-```
-
-Executar as migrations:
-
-```bash
-docker compose exec api npm run db:migrate
-```
-
-Verificar os containers em execução:
-
-```bash
-docker ps
-```
+Os dados do PostgreSQL permanecem no volume `postgres_data`. O comando `docker compose down -v` também remove o volume e seus dados.
 
 ## Fluxo da aplicação
 
-De forma simplificada, uma requisição protegida percorre o seguinte fluxo:
+Uma requisição à API passa pelas rotas, pelos middlewares necessários e pelo controller. O controller chama o service, que aplica as regras de negócio e usa os repositories para acessar o banco. DTOs e mappers ajudam a validar e organizar os dados.
 
-```text
-Requisição HTTP
-      ↓
-Route
-      ↓
-Middleware de autenticação
-      ↓
-Controller
-      ↓
-Service
-      ↓
-DTO / Regras de negócio
-      ↓
-Repository
-      ↓
-Drizzle ORM
-      ↓
-PostgreSQL
-```
+O front-end utiliza Axios para chamar a API e contexts para compartilhar estados e operações entre componentes. As rotas protegidas exigem autenticação.
 
-Na resposta, os dados podem passar pelo Mapper e pelo DTO de resposta antes de serem devolvidos ao cliente.
+## API e exemplos
+
+Com a API em execução, acesse `http://localhost:3000/api-docs` para consultar o Swagger. Há exemplos adicionais em `backend/requests/`.
+
+**Observação:** a documentação Swagger e alguns exemplos ainda precisam ser revisados para refletir todas as alterações recentes, incluindo autenticação e o fluxo de convites.
+
+## Estado atual
+
+O projeto está em evolução. A tela **Meu perfil** permite consultar os dados da conta; a edição ainda não está disponível. Os convites recebidos são carregados ao iniciar a sessão ou atualizar a página.
 
 ## Autor
 

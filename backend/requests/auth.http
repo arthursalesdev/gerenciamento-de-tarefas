@@ -9,6 +9,7 @@ Content-Type: application/json
 
 {
     "nome": "Usuário Teste",
+    "nomeUsuario": "usuario_teste",
     "email": "usuario.teste@teste.com",
     "senha": "123456"
 }
@@ -33,11 +34,11 @@ Content-Type: application/json
     "senha": "123456"
 }
 
-### AUTH-03 — Consultar usuário autenticado
+### AUTH-04 — Consultar usuário autenticado
 GET http://localhost:3000/auth/me
 Authorization: Bearer {{loginNomeUsuario.response.body.$.token}}
 
-### AUTH-04 — Login inválido
+### AUTH-05 — Login inválido
 POST http://localhost:3000/auth/login
 Content-Type: application/json
 
@@ -46,7 +47,7 @@ Content-Type: application/json
     "senha": "123456"
 }
 
-### [AUTH-05] Login com campos ausentes
+### [AUTH-06] Login com campos ausentes
 # Esperado: 400 Bad Request
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
@@ -55,32 +56,34 @@ Content-Type: application/json
     "email": "arthur@teste.com"
 }
 
-### [AUTH-06] Consultar usuário sem token
+### [AUTH-07] Consultar usuário sem token
 # Esperado: 401 Unauthorized
 GET {{baseUrl}}/auth/me
 
-### [AUTH-07] Consultar usuário com token inválido
+### [AUTH-08] Consultar usuário com token inválido
 # Esperado: 401 Unauthorized
 GET {{baseUrl}}/auth/me
 Authorization: Bearer token-invalido
 
-### [AUTH-08] Cadastrar e-mail duplicado
+### [AUTH-09] Cadastrar e-mail duplicado
 # Esperado: 409 Conflict
 POST {{baseUrl}}/auth/cadastro
 Content-Type: application/json
 
 {
     "nome": "Usuário Duplicado",
+    "nomeUsuario": "usuario_duplicado",
     "email": "arthur@teste.com",
     "senha": "123456"
 }
 
-### [AUTH-09] Cadastrar usuário sem nome
+### [AUTH-10] Cadastrar usuário sem nome
 # Esperado: 400 Bad Request
 POST {{baseUrl}}/auth/cadastro
 Content-Type: application/json
 
 {
+    "nomeUsuario": "usuario_sem_nome",
     "email": "sem.nome@teste.com",
     "senha": "123456"
 }
