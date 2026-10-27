@@ -13,7 +13,6 @@ import { useMembros } from "../../context/membrosContext";
 import { useCargos } from "../../context/cargosContext";
 import { usePermissoes } from "../../context/permissoesContext";
 import { useConvites } from "../../context/convitesContext";
-import { useTarefas } from "../../context/tarefasContext";
 
 function Gerenciamento() {
     const navigate = useNavigate();
@@ -24,12 +23,18 @@ function Gerenciamento() {
     const { buscarCargoPorId, cargos } = useCargos();
     const { pode } = usePermissoes();
     const { enviarConvite } = useConvites();
-    const { removerResponsavelDaEquipe } = useTarefas();
 
     const [nomeUsuario, setNomeUsuario] = useState("");
     const [tag, setTag] = useState("");
     const [cargoConvite, setCargoConvite] = useState("membro");
     const [mensagemConvite, setMensagemConvite] = useState("");
+    const [buscandoUsuario, setBuscandoUsuario] = useState(false);
+    const [erroCargo, setErroCargo] = useState("");
+    const [alterandoCargoId, setAlterandoCargoId] = useState(null);
+    const [removendoMembroId, setRemovendoMembroId] = useState(null);
+    const [saindoDaEquipe, setSaindoDaEquipe] = useState(false);
+    const [erroMembros, setErroMembros] = useState("");
+
     const [modalTransferenciaAberto, setModalTransferenciaAberto] = useState(false);
 
     if (!pode("gerenciarMembros")) {
@@ -43,18 +48,19 @@ function Gerenciamento() {
     const membros = areaPessoalAtiva ? [] : buscarMembrosDaEquipe(areaAtual.equipeId);
 
     const buscarUsuario = (usuarioId) => {
-        return usuarios.find(
-            (usuario) => String(usuario.id) === String(usuarioId)
-        );
+        if (String(usuarioId) === String(usuarioLogado?.id)) {
+            return usuarioLogado;
+        }
+
+        const membro = membros.find((item) => String(item.usuarioId) === String(usuarioId));
+        return (membro?.usuario || usuarios.find((usuario) => String(usuario.id) === String(usuarioId)) || null);
     };
 
     const membroAtual = buscarMembro(usuarioLogado?.id, areaAtual.equipeId);
     const ehDono = membroAtual?.cargoId === "dono";
 
     const membrosTransferencia = membros
-        .filter(
-            (membro) => String(membro.usuarioId) !== String(usuarioLogado?.id)
-        )
+        .filter((membro) => String(membro.usuarioId) !== String(usuarioLogado?.id))
         .map((membro) => {
             const usuario = buscarUsuario(membro.usuarioId);
             return {
@@ -62,74 +68,139 @@ function Gerenciamento() {
             };
         });
 
-    const convidarUsuario = () => {
+    const convidarUsuario = async () => {
+        if (buscandoUsuario) return;
+
         setMensagemConvite("");
-        const usuario = buscarUsuarioPorIdentidade(nomeUsuario, tag);
 
-        if (!usuario) {
-            setMensagemConvite("Usuário não encontrado");
+        const nome = nomeUsuario.trim();
+        const tagFormatada = tag.trim().replace(/^#/, "");
+
+        if (!nome) {
+            setMensagemConvite("Informe o nome de usuário.");
             return;
         }
 
-        if (String(usuario.id) === String(usuarioLogado?.id)) {
-            setMensagemConvite("Você já faz parte desta equipe");
+        if (!/^\d{4}$/.test(tagFormatada)) {
+            setMensagemConvite("Informe uma tag válida de quatro dígitos.");
             return;
         }
 
-        const resultado = enviarConvite({ equipeId: areaAtual.equipeId, convidadoId: usuario.id, convidadorId: usuarioLogado.id, cargoId: cargoConvite });
+        setBuscandoUsuario(true);
 
-        if (!resultado.sucesso) {
-            setMensagemConvite(resultado.mensagem);
-            return;
+        try {
+            const usuario = await buscarUsuarioPorIdentidade(nome, tagFormatada);
+
+            if (!usuario) {
+                setMensagemConvite("Usuário não encontrado.");
+                return;
+            }
+
+            if (String(usuario.id) === String(usuarioLogado?.id)) {
+                setMensagemConvite("Você já faz parte desta equipe.");
+                return;
+            }
+
+            const jaParticipa = buscarMembrosDaEquipe(areaAtual.equipeId).some((membro) => String(membro.usuarioId) === String(usuario.id));
+
+            if (jaParticipa) {
+                setMensagemConvite("Este usuário já pertence à equipe.");
+                return;
+            }
+
+            const resultado = await enviarConvite({
+                equipeId: areaAtual.equipeId, convidadoId: usuario.id,
+                convidadorId: usuarioLogado.id, cargoId: cargoConvite
+            });
+
+            if (!resultado?.sucesso) {
+                setMensagemConvite(resultado?.mensagem || "Não foi possível enviar o convite");
+                return;
+            }
+
+            setNomeUsuario("");
+            setTag("");
+            setCargoConvite("membro");
+            setMensagemConvite("Convite enviado");
+        } catch (erro) {
+            setMensagemConvite(erro.response?.data?.mensagem || erro.response?.data?.message || "Não foi possível localizar o usuário");
+        } finally {
+            setBuscandoUsuario(false);
         }
-
-        setNomeUsuario("");
-        setTag("");
-        setCargoConvite("membro");
-        setMensagemConvite("Convite enviado");
     };
 
     const cargosDisponiveis = cargos.filter((cargo) => cargo.id !== "dono");
 
-    const mudarCargo = (membro, novoCargoId) => {
-        if (!pode("gerenciarPermissoes")) {
-            return;
-        }
+    const mudarCargo = async (membro, novoCargoId) => {
+        if (!pode("gerenciarPermissoes")) return;
+        if (membro.cargoId === "dono") return;
+        if (novoCargoId === "dono") return;
+        if (alterandoCargoId !== null) return;
 
-        if (membro.cargoId === "dono") {
-            return;
-        }
+        setErroCargo("");
+        setAlterandoCargoId(membro.usuarioId);
 
-        if (novoCargoId === "dono") {
-            return;
-        }
+        try {
+            const resultado = await alterarCargo(membro.usuarioId, membro.equipeId, novoCargoId);
 
-        alterarCargo(membro.usuarioId, membro.equipeId, novoCargoId);
+            if (!resultado?.sucesso) {
+                setErroCargo(resultado?.mensagem || "Não foi possível alterar o cargo do membro");
+            }
+        } catch (error) {
+            setErroCargo(error.response?.data?.message || error.response?.data?.mensagem || "Não foi possível alterar o cargo do membro");
+        } finally {
+            setAlterandoCargoId(null);
+        }
     };
 
-    const sairDaEquipe = () => {
+    const sairDaEquipe = async () => {
+        if (saindoDaEquipe) return;
+
         if (!podeSairDaEquipe(usuarioLogado.id, areaAtual.equipeId)) {
             return;
         }
 
-        removerResponsavelDaEquipe(usuarioLogado.id, areaAtual.equipeId);
-        const resultado = removerMembro(usuarioLogado.id, areaAtual.equipeId);
+        setSaindoDaEquipe(true);
+        setErroMembros("");
 
-        if (!resultado.sucesso) {
-            return;
+        try {
+            const resultado = await removerMembro(usuarioLogado.id, areaAtual.equipeId);
+
+            if (!resultado?.sucesso) {
+                setErroMembros(resultado?.mensagem || "Não foi possível sair da equipe");
+                return;
+            }
+
+            irParaPessoal();
+            navigate("/tarefas");
+        } catch (error) {
+            setErroMembros(error.response?.data?.message || error.response?.data?.mensagem || "Não foi possível sair da equipe");
+        } finally {
+            setSaindoDaEquipe(false);
         }
-
-        irParaPessoal();
-        navigate("/tarefas");
     };
 
-    const removerUsuarioDaEquipe = (membro) => {
+    const removerUsuarioDaEquipe = async (membro) => {
+        if (removendoMembroId !== null) return;
+
         if (!podeRemoverMembro(usuarioLogado.id, membro.usuarioId, areaAtual.equipeId)) {
             return;
         }
 
-        removerResponsavelDaEquipe(membro.usuarioId, areaAtual.equipeId);
-        removerMembro(membro.usuarioId, areaAtual.equipeId);
+        setRemovendoMembroId(membro.usuarioId);
+        setErroMembros("");
+
+        try {
+            const resultado = await removerMembro(membro.usuarioId, areaAtual.equipeId);
+
+            if (!resultado?.sucesso) {
+                setErroMembros(resultado?.mensagem || "Não foi possível remover o integrante");
+            }
+        } catch (error) {
+            setErroMembros(error.response?.data?.message || error.response?.data?.mensagem || "Não foi possível remover o integrante");
+        } finally {
+            setRemovendoMembroId(null);
+        }
     };
 
     return (
@@ -155,7 +226,7 @@ function Gerenciamento() {
 
                         <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
                             <TextField label="Nome de usuário" value={nomeUsuario} onChange={(event) => setNomeUsuario(event.target.value)} fullWidth />
-                            <TextField label="Tag" placeholder="#abc1234" value={tag} onChange={(event) => setTag(event.target.value)} />
+                            <TextField label="Tag" placeholder="#1234" value={tag} onChange={(event) => setTag(event.target.value)} />
                             <TextField select label="Cargo" value={cargoConvite} onChange={(event) => setCargoConvite(event.target.value)} sx={{ minWidth: 160 }}>
                                 {pode("gerenciarPermissoes") && (
                                     <MenuItem value="lider">
@@ -169,8 +240,8 @@ function Gerenciamento() {
                                     Visualizador
                                 </MenuItem>
                             </TextField>
-                            <Button variant="contained" onClick={convidarUsuario} sx={{ bgcolor: "primary.main", whiteSpace: "nowrap", px: 3 }}>
-                                Enviar convite
+                            <Button variant="contained" onClick={convidarUsuario} disabled={buscandoUsuario} sx={{ bgcolor: "primary.main", whiteSpace: "nowrap", px: 3 }}>
+                                {buscandoUsuario ? "Buscando..." : "Enviar convite"}
                             </Button>
                         </Stack>
 
@@ -185,6 +256,16 @@ function Gerenciamento() {
                         <Typography variant="h6" sx={{ mb: 2 }} >
                             Membros
                         </Typography>
+                        {erroMembros && (
+                            <Typography variant="body2" color="error" sx={{ mb: 2 }}>
+                                {erroMembros}
+                            </Typography>
+                        )}
+                        {erroCargo && (
+                            <Typography variant="body2" color="error" sx={{ mb: 2 }}>
+                                {erroCargo}
+                            </Typography>
+                        )}
 
                         <Stack spacing={1.5}>
                             {membros.map((membro) => {
@@ -201,7 +282,7 @@ function Gerenciamento() {
                                         }}
                                     >
                                         <Stack direction="row" alignItems="center" spacing={1.5}>
-                                            <AvatarUsuario usuario={usuario} tamanho="pequeno" animado/>
+                                            <AvatarUsuario usuario={usuario} tamanho="pequeno" animado />
                                             <Box>
                                                 <Typography variant="body1" sx={{ fontWeight: 600 }}>
                                                     {usuario?.nome || "Usuário"}
@@ -215,7 +296,7 @@ function Gerenciamento() {
                                             {membro.cargoId === "dono" ? (
                                                 <Chip label="Dono" size="small" color="warning" />
                                             ) : pode("gerenciarPermissoes") ? (
-                                                <TextField select size="small" value={membro.cargoId} onChange={(event) => mudarCargo(membro, event.target.value)} sx={{ minWidth: 140 }} >
+                                                <TextField select size="small" value={membro.cargoId} onChange={(event) => mudarCargo(membro, event.target.value)} disabled={alterandoCargoId !== null} sx={{ minWidth: 140 }} >
                                                     {cargosDisponiveis.map((cargo) => (
                                                         <MenuItem key={cargo.id} value={cargo.id}>
                                                             {cargo.nome}
@@ -227,8 +308,8 @@ function Gerenciamento() {
                                             )}
 
                                             {podeRemover && (
-                                                <Button variant="text" color="error" onClick={() => removerUsuarioDaEquipe(membro)}>
-                                                    Remover
+                                                <Button variant="text" color="error" onClick={() => removerUsuarioDaEquipe(membro)} disabled={removendoMembroId !== null}>
+                                                    {String(removendoMembroId) === String(membro.usuarioId) ? "Removendo..." : "Remover"}
                                                 </Button>
                                             )}
                                         </Stack>
@@ -238,8 +319,8 @@ function Gerenciamento() {
                         </Stack>
                     </Card>
                     {!ehDono && (
-                        <Button variant="text" color="error" onClick={sairDaEquipe} sx={{ mt: 3 }}>
-                            Sair da equipe
+                        <Button variant="text" color="error" onClick={sairDaEquipe} disabled={saindoDaEquipe} sx={{ mt: 3 }}>
+                            {saindoDaEquipe ? "Saindo..." : "Sair da equipe"}
                         </Button>
                     )}
                     {ehDono && (
@@ -255,11 +336,13 @@ function Gerenciamento() {
                 </Container>
             </Box>
             <ModalTransferencia aberto={modalTransferenciaAberto} aoFechar={() => setModalTransferenciaAberto(false)} membros={membrosTransferencia}
-                aoConfirmar={(novoDonoId) => {
-                    const resultado = transferirPropriedade(areaAtual.equipeId, usuarioLogado.id, novoDonoId);
+                aoConfirmar={async (novoDonoId) => {
+                    const resultado = await transferirPropriedade(areaAtual.equipeId, usuarioLogado.id, novoDonoId);
 
                     if (resultado.sucesso) {
                         setModalTransferenciaAberto(false);
+                    } else {
+                        console.error(resultado.mensagem);
                     }
                 }}
             />

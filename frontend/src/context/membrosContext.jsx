@@ -1,4 +1,7 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useCallback } from "react";
+
+import api from "../services/api";
+import { useAuth } from "./authContext";
 import { useEquipes } from "./equipesContext";
 
 const MembrosContext = createContext();
@@ -6,14 +9,19 @@ const MembrosContext = createContext();
 const CHAVE_MEMBROS = "membrosEquipes";
 
 export function MembrosProvider({ children }) {
-    const { transferirDono } = useEquipes();
+    const { transferirDono, equipesApi } = useEquipes();
+    const { usuarioLogado } = useAuth();
+
+    const [membrosApi, setMembrosApi] = useState([]);
+    const [carregandoMembros, setCarregandoMembros] = useState(false);
+    const [erroMembros, setErroMembros] = useState("");
 
     const [membros, setMembros] = useState(() => {
         const membrosSalvos = localStorage.getItem(CHAVE_MEMBROS);
         return membrosSalvos ? JSON.parse(membrosSalvos) : [];
     });
 
-    const transferirPropriedade = (equipeId, donoAtualId, novoDonoId) => {
+    const transferirPropriedade = async (equipeId, donoAtualId, novoDonoId) => {
         const donoAtual = buscarMembro(donoAtualId, equipeId);
         const novoDono = buscarMembro(novoDonoId, equipeId);
 
@@ -35,32 +43,55 @@ export function MembrosProvider({ children }) {
             };
         }
 
-        setMembros((membrosAtuais) =>
-            membrosAtuais.map((membro) => {
-                if (String(membro.equipeId) !== String(equipeId)) {
-                    return membro;
-                }
-
-                if (String(membro.usuarioId) === String(donoAtualId)) {
-                    return {
-                        ...membro, cargoId: "membro"
-                    };
-                }
-
-                if (String(membro.usuarioId) === String(novoDonoId)) {
-                    return {
-                        ...membro, cargoId: "dono"
-                    };
-                }
-
-                return membro;
-            })
+        const equipeReal = equipesApi.some(
+            (equipe) => String(equipe.id) === String(equipeId)
         );
 
-        transferirDono(equipeId, novoDonoId);
+        if (!equipeReal) {
+            setMembros((atuais) =>
+                atuais.map((membro) => {
+                    if (String(membro.equipeId) !== String(equipeId)) {
+                        return membro;
+                    }
+
+                    if (String(membro.usuarioId) === String(donoAtualId)) {
+                        return { ...membro, cargoId: "lider" };
+                    }
+
+                    if (String(membro.usuarioId) === String(novoDonoId)) {
+                        return { ...membro, cargoId: "dono" };
+                    }
+
+                    return membro;
+                })
+            );
+
+            transferirDono(equipeId, novoDonoId);
+
+            return {
+                sucesso: true, mensagem: "Propriedade transferida com sucesso"
+            };
+        }
+
+        try {
+            await api.patch(`/equipes/${equipeId}/propriedade`, {
+                novoDonoId: Number(novoDonoId)
+            });
+        } catch (error) {
+            return {
+                sucesso: false,
+                mensagem: error.response?.data?.message || error.response?.data?.mensagem || "Não foi possível transferir a propriedade"
+            };
+        }
+
+        try {
+            await recarregarMembros();
+        } catch (error) {
+            console.error("Propriedade transferida, mas houve erro ao atualizar os membros:", error);
+        }
 
         return {
-            sucesso: true, mensagem: "Propriedade transferida com sucesso."
+            sucesso: true, mensagem: "Propriedade transferida com sucesso"
         };
     };
 
@@ -78,23 +109,90 @@ export function MembrosProvider({ children }) {
         localStorage.setItem(CHAVE_MEMBROS, JSON.stringify(membros));
     }, [membros]);
 
+    const recarregarMembros = useCallback(async (equipesAtualizadas) => {
+        const listaEquipes = equipesAtualizadas ?? equipesApi;
+
+        if (!usuarioLogado?.id || !listaEquipes.length) {
+            setMembrosApi([]);
+            return [];
+        }
+
+        setCarregandoMembros(true);
+        setErroMembros("");
+
+        try {
+            const respostas = await Promise.all(listaEquipes.map((equipe) => api.get(`/equipes/${equipe.id}/membros`)));
+            const lista = respostas.flatMap((resposta, indice) => {
+                const dados = resposta.data;
+
+                const integrantes = Array.isArray(dados)
+                    ? dados
+                    : Array.isArray(dados.membros)
+                        ? dados.membros : [];
+
+                return integrantes.map((membro) => ({
+                    ...membro,
+                    equipeId: listaEquipes[indice].id,
+                    cargoId: membro.cargo?.toLowerCase()
+                }));
+            });
+
+            const idsUsuarios = [
+                ...new Set(lista.map((membro) => membro.usuarioId))
+            ];
+
+            const resultadosUsuarios = await Promise.allSettled(idsUsuarios.map((id) => api.get(`/usuarios/${id}`)));
+            const usuariosPorId = new Map();
+
+            resultadosUsuarios.forEach((resultado, indice) => {
+                if (resultado.status === "fulfilled") {
+                    usuariosPorId.set(String(idsUsuarios[indice]), resultado.value.data);
+                } else {
+                    console.error("Não foi possível carregar o usuário:", idsUsuarios[indice], resultado.reason);
+                }
+            });
+
+            const membrosComUsuarios = lista.map((membro) => ({
+                ...membro,
+                usuario: usuariosPorId.get(String(membro.usuarioId)) ||
+                    (String(membro.usuarioId) === String(usuarioLogado.id)
+                        ? usuarioLogado : null)
+            }));
+
+            setMembrosApi(membrosComUsuarios);
+
+            return membrosComUsuarios;
+        } catch (error) {
+            setErroMembros(error.response?.data?.message || error.response?.data?.mensagem || "Não foi possível carregar os membros");
+            throw error;
+        } finally {
+            setCarregandoMembros(false);
+        }
+    }, [usuarioLogado?.id, equipesApi]);
+
+    useEffect(() => {
+        if (!usuarioLogado?.id || !equipesApi.length) {
+            setMembrosApi([]);
+            setErroMembros("");
+            return;
+        }
+
+        recarregarMembros().catch(() => { });
+    }, [usuarioLogado?.id, equipesApi, recarregarMembros]);
+
     const adicionarMembro = (usuarioId, equipeId, cargoId = "membro") => {
-        const jaExiste = membros.some(
-            (membro) =>
-                String(membro.usuarioId) === String(usuarioId) &&
-                String(membro.equipeId) === String(equipeId)
-        );
+        const jaExiste = membros.some((membro) => String(membro.usuarioId) === String(usuarioId) && String(membro.equipeId) === String(equipeId));
 
         if (jaExiste) {
             return false;
         }
 
-        const novoMembro = {id: Date.now(), usuarioId, equipeId, cargoId};
+        const novoMembro = { id: Date.now(), usuarioId, equipeId, cargoId };
         setMembros((membrosAtuais) => [...membrosAtuais, novoMembro]);
         return novoMembro;
     };
 
-    const removerMembro = (usuarioId, equipeId) => {
+    const removerMembro = async (usuarioId, equipeId) => {
         const membro = buscarMembro(usuarioId, equipeId);
 
         if (!membro) {
@@ -109,41 +207,79 @@ export function MembrosProvider({ children }) {
             };
         }
 
-        setMembros((membrosAtuais) => membrosAtuais.filter((membroAtual) => !(String(membroAtual.usuarioId) === String(usuarioId) && String(membroAtual.equipeId) === String(equipeId))));
+        const equipeReal = equipesApi.some(
+            (equipe) => String(equipe.id) === String(equipeId)
+        );
 
-        return {
-            sucesso: true
-        };
+        if (!equipeReal) {
+            setMembros((atuais) => atuais.filter((item) => !(String(item.usuarioId) === String(usuarioId) && String(item.equipeId) === String(equipeId))));
+            return { sucesso: true };
+        }
+
+        try {
+            const saindoDaEquipe = String(usuarioId) === String(usuarioLogado?.id);
+            const endpoint = saindoDaEquipe ? `/equipes/${equipeId}/membros/me` : `/equipes/${equipeId}/membros/${usuarioId}`;
+            await api.delete(endpoint);
+
+            setMembros((atuais) => atuais.filter((item) => !(String(item.usuarioId) === String(usuarioId) && String(item.equipeId) === String(equipeId))));
+
+            if (saindoDaEquipe) {
+                setMembrosApi((atuais) => atuais.filter((item) => String(item.equipeId) !== String(equipeId)));
+            } else {
+                await recarregarMembros();
+            }
+
+            return { sucesso: true };
+        } catch (error) {
+            return {
+                sucesso: false,
+                mensagem: error.response?.data?.message || error.response?.data?.mensagem || "Não foi possível remover o membro"
+            };
+        }
     };
 
-    const alterarCargo = (usuarioId, equipeId, novoCargoId) => {
-        setMembros((membrosAtuais) =>
-            membrosAtuais.map((membro) =>
-                String(membro.usuarioId) === String(usuarioId) &&
-                    String(membro.equipeId) === String(equipeId)
-                    ? {
-                        ...membro, cargoId: novoCargoId
-                    }
-                    : membro
-            )
-        );
+    const alterarCargo = async (usuarioId, equipeId, novoCargoId) => {
+        const equipeReal = equipesApi.some((equipe) => String(equipe.id) === String(equipeId));
+
+        if (!equipeReal) {
+            setMembros((atuais) =>
+                atuais.map((membro) =>
+                    String(membro.usuarioId) === String(usuarioId) &&
+                        String(membro.equipeId) === String(equipeId)
+                        ? { ...membro, cargoId: novoCargoId }
+                        : membro
+                )
+            );
+
+            return { sucesso: true };
+        }
+
+        try {
+            await api.patch(`/equipes/${equipeId}/membros/${usuarioId}/cargo`, { cargo: novoCargoId.toUpperCase() });
+            await recarregarMembros();
+            return { sucesso: true };
+        } catch (error) {
+            return {
+                sucesso: false,
+                mensagem: error.response?.data?.message || error.response?.data?.mensagem || "Não foi possível alterar o cargo do membro"
+            };
+        }
     };
 
     const buscarMembrosDaEquipe = (equipeId) => {
-        return membros.filter(
-            (membro) => String(membro.equipeId) === String(equipeId)
-        );
+        const equipeReal = equipesApi.some((equipe) => String(equipe.id) === String(equipeId));
+        const origem = equipeReal ? membrosApi : membros;
+        return origem.filter((membro) => String(membro.equipeId) === String(equipeId));
     };
 
     const buscarEquipesDoUsuario = (usuarioId) => {
-        return membros.filter((membro) => String(membro.usuarioId) === String(usuarioId)).map((membro) => membro.equipeId);
+        const equipesReais = membrosApi.filter((membro) => String(membro.usuarioId) === String(usuarioId)).map((membro) => membro.equipeId);
+        const equipesLocais = membros.filter((membro) => String(membro.usuarioId) === String(usuarioId)).map((membro) => membro.equipeId);
+        return [...new Set([...equipesReais, ...equipesLocais])];
     };
 
     const buscarMembro = (usuarioId, equipeId) => {
-        return membros.find(
-            (membro) =>
-                String(membro.usuarioId) === String(usuarioId) && String(membro.equipeId) === String(equipeId)
-        );
+        return buscarMembrosDaEquipe(equipeId).find((membro) => String(membro.usuarioId) === String(usuarioId));
     };
 
     const podeRemoverMembro = (usuarioAtualId, usuarioAlvoId, equipeId) => {
@@ -176,7 +312,7 @@ export function MembrosProvider({ children }) {
     return (
         <MembrosContext.Provider
             value={{
-                membros, adicionarMembro, removerMembro, transferirPropriedade, podeSairDaEquipe,
+                membros, membrosApi, carregandoMembros, erroMembros, recarregarMembros, adicionarMembro, removerMembro, transferirPropriedade, podeSairDaEquipe,
                 podeRemoverMembro, buscarMembrosDaEquipe, buscarEquipesDoUsuario, buscarMembro, alterarCargo
             }}
         >

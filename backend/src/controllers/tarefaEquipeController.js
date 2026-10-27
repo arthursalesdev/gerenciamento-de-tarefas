@@ -6,11 +6,7 @@ class TarefaEquipeController {
         try {
             const equipeId = Number(req.params.equipeId);
             const usuarioId = req.usuario.id;
-
-            const tarefas = await tarefaService.listarPorEquipe(
-                equipeId,
-                usuarioId
-            );
+            const tarefas = await tarefaService.listarPorEquipe(equipeId, usuarioId);
 
             return res.status(200).json(tarefas);
         } catch (error) {
@@ -23,12 +19,7 @@ class TarefaEquipeController {
             const equipeId = Number(req.params.equipeId);
             const tarefaId = Number(req.params.tarefaId);
             const usuarioId = req.usuario.id;
-
-            const tarefa = await tarefaService.buscarPorIdNaEquipe(
-                tarefaId,
-                equipeId,
-                usuarioId
-            );
+            const tarefa = await tarefaService.buscarPorIdNaEquipe(tarefaId, equipeId, usuarioId);
 
             return res.status(200).json(tarefa);
         } catch (error) {
@@ -41,13 +32,7 @@ class TarefaEquipeController {
             const equipeId = Number(req.params.equipeId);
             const tarefaId = Number(req.params.tarefaId);
             const usuarioId = req.usuario.id;
-
-            const tarefa = await tarefaService.atualizarNaEquipe(
-                tarefaId,
-                equipeId,
-                req.body,
-                usuarioId
-            );
+            const tarefa = await tarefaService.atualizarNaEquipe(tarefaId, equipeId, req.body, usuarioId);
 
             return res.status(200).json(tarefa);
         } catch (error) {
@@ -61,13 +46,22 @@ class TarefaEquipeController {
             const tarefaId = Number(req.params.tarefaId);
             const usuarioId = req.usuario.id;
 
-            await tarefaService.deletarNaEquipe(
-                tarefaId,
-                equipeId,
-                usuarioId
-            );
+            await tarefaService.deletarNaEquipe(tarefaId, equipeId, usuarioId);
 
             return res.status(204).send();
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async atualizarResponsavel(req, res, next) {
+        try {
+            const equipeId = Number(req.params.equipeId);
+            const tarefaId = Number(req.params.tarefaId);
+            const usuarioId = req.usuario.id;
+            const tarefa = await tarefaService.atualizarResponsavel(tarefaId, equipeId, req.body, usuarioId);
+
+            return res.status(200).json(tarefa);
         } catch (error) {
             next(error);
         }

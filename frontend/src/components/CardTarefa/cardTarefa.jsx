@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Box, Card, IconButton, Menu, MenuItem, Stack, Typography } from "@mui/material";
+import { Box, Card, Chip, IconButton, Menu, MenuItem, Stack, Typography } from "@mui/material";
 
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
@@ -8,7 +8,7 @@ import EventOutlinedIcon from "@mui/icons-material/EventOutlined";
 
 import AvatarUsuario from "../AvatarUsuario/avatarUsuario";
 
-function CardTarefa({ titulo, usuario, descricao, status, dataLimite, origem, podeEditar = true, podeExcluir = true, aoEditar, aoExcluir }) {
+function CardTarefa({ titulo, usuario, descricao, status, prioridade, dataLimite, origem, podeEditar = true, podeExcluir = true, aoEditar, aoExcluir }) {
     const [aberto, setAberto] = useState(null);
     const menuAberto = Boolean(aberto);
     const configuracaoStatus = {
@@ -18,6 +18,14 @@ function CardTarefa({ titulo, usuario, descricao, status, dataLimite, origem, po
     };
 
     const statusAtual = configuracaoStatus[status] || configuracaoStatus.pendente;
+
+    const configuracaoPrioridade = {
+        BAIXA: { label: "Baixa", cor: "success" },
+        MEDIA: { label: "Média", cor: "warning" },
+        ALTA: { label: "Alta", cor: "error" }
+    };
+
+    const prioridadeAtual = configuracaoPrioridade[prioridade];
 
     const abrirMenu = (event) => {
         setAberto(event.currentTarget);
@@ -92,6 +100,12 @@ function CardTarefa({ titulo, usuario, descricao, status, dataLimite, origem, po
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1, lineHeight: 1.5, pr: 2 }}>
                 {descricao}
             </Typography>
+            {prioridadeAtual && (
+                <Chip
+                    label={prioridadeAtual.label} color={prioridadeAtual.cor} size="small" variant="outlined"
+                    sx={{ mt: 1.5, height: 24, fontSize: "0.72rem", fontWeight: 600 }}
+                />
+            )}
 
             <Box sx={{ mt: 3, position: "relative", width: "100%", minHeight: 42 }}>
                 <Box sx={{ position: "absolute", left: 0, bottom: 0 }}>

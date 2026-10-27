@@ -3,6 +3,8 @@ import { pgTable, serial, varchar, timestamp } from "drizzle-orm/pg-core";
 export const usuarios = pgTable("usuarios", {
     id: serial("id").primaryKey(),
     nome: varchar("nome", { length: 100 }).notNull(),
+    nomeUsuario: varchar("nome_usuario", { length: 50 }).notNull(),
+    tag: varchar("tag", { length: 4 }).notNull(),
     email: varchar("email", { length: 150 }).notNull().unique(),
     senha: varchar("senha", { length: 255 }).notNull(),
     criadoEm: timestamp("criado_em").notNull().defaultNow(),

@@ -235,3 +235,5 @@ Authorization: Bearer {{loginDono.response.body.$.token}}
 # Esperado: 404 Not Found
 GET {{baseUrl}}/equipes/{{criarEquipeTeste.response.body.$.id}}/tarefas/{{criarTarefaTeste.response.body.$.id}}
 Authorization: Bearer {{loginDono.response.body.$.token}}
+
+

@@ -13,30 +13,37 @@ Content-Type: application/json
     "senha": "123456"
 }
 
-### [AUTH-02] Realizar login
-# Esperado: 200 OK
-# @name login
-POST {{baseUrl}}/auth/login
+### AUTH-02 — Login por nome de usuário
+# @name loginNomeUsuario
+POST http://localhost:3000/auth/login
 Content-Type: application/json
 
 {
-    "email": "arthur@teste.com",
+    "identificador": "arthur",
     "senha": "123456"
 }
 
-### [AUTH-03] Consultar usuário autenticado
-# Esperado: 200 OK
-GET {{baseUrl}}/auth/me
-Authorization: Bearer {{login.response.body.$.token}}
-
-### [AUTH-04] Login com senha incorreta
-# Esperado: 401 Unauthorized
-POST {{baseUrl}}/auth/login
+### AUTH-03 — Login por e-mail
+# @name loginEmail
+POST http://localhost:3000/auth/login
 Content-Type: application/json
 
 {
-    "email": "arthur@teste.com",
-    "senha": "senha-incorreta"
+    "identificador": "arthur@teste.com",
+    "senha": "123456"
+}
+
+### AUTH-03 — Consultar usuário autenticado
+GET http://localhost:3000/auth/me
+Authorization: Bearer {{loginNomeUsuario.response.body.$.token}}
+
+### AUTH-04 — Login inválido
+POST http://localhost:3000/auth/login
+Content-Type: application/json
+
+{
+    "identificador": "usuario_inexistente",
+    "senha": "123456"
 }
 
 ### [AUTH-05] Login com campos ausentes
@@ -76,4 +83,48 @@ Content-Type: application/json
 {
     "email": "sem.nome@teste.com",
     "senha": "123456"
+}
+
+### CADASTRO-01 — Novo usuário
+POST http://localhost:3000/auth/cadastro
+Content-Type: application/json
+
+{
+    "nome": "Usuário Integração",
+    "nomeUsuario": "usuario_integracao",
+    "email": "integracao@teste.com",
+    "senha": "Teste123456"
+}
+
+### CADASTRO-02 — Nome de usuário já utilizado
+POST http://localhost:3000/auth/cadastro
+Content-Type: application/json
+
+{
+    "nome": "Outro Usuário",
+    "nomeUsuario": "arthur",
+    "email": "outro.usuario@teste.com",
+    "senha": "Teste123456"
+}
+
+### CADASTRO-03 — Verificar unicidade sem diferenciar maiúsculas
+POST http://localhost:3000/auth/cadastro
+Content-Type: application/json
+
+{
+    "nome": "Outro Usuário",
+    "nomeUsuario": "ARTHUR",
+    "email": "outro.usuario2@teste.com",
+    "senha": "Teste123456"
+}
+
+### CADASTRO-04 — Nome de usuário inválido
+POST http://localhost:3000/auth/cadastro
+Content-Type: application/json
+
+{
+    "nome": "Usuário Inválido",
+    "nomeUsuario": "a@",
+    "email": "invalido@teste.com",
+    "senha": "Teste123456"
 }

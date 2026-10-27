@@ -1,135 +1,172 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import api from "../services/api";
 
 const AuthContext = createContext();
-const CHAVE_USUARIO = "usuarioLogado";
-const CHAVE_USUARIOS = "usuariosCadastrados";
+const CHAVE_TOKEN = "taskflow_token";
+
+function obterMensagemErro(erro, mensagemPadrao) {
+    if (!erro.response) {
+        return "Não foi possível conectar ao servidor";
+    }
+
+    return (erro.response.data?.mensagem || erro.response.data?.message || mensagemPadrao);
+}
 
 export function AuthProvider({ children }) {
-    const [usuarioLogado, setUsuarioLogado] = useState(() => {
-        const usuarioSalvo = localStorage.getItem(CHAVE_USUARIO);
-        return usuarioSalvo ? JSON.parse(usuarioSalvo) : null;
-    });
-
-    const [usuarios, setUsuarios] = useState(() => {
-        const usuariosSalvos = localStorage.getItem(CHAVE_USUARIOS);
-        return usuariosSalvos ? JSON.parse(usuariosSalvos) : [];
-    });
+    const [usuarioLogado, setUsuarioLogado] = useState(null);
+    const [verificandoSessao, setVerificandoSessao] = useState(true);
 
     useEffect(() => {
-        localStorage.setItem(CHAVE_USUARIOS, JSON.stringify(usuarios));
-    }, [usuarios]);
+        let ativo = true;
 
-    useEffect(() => {
-        if (usuarioLogado) {
-            localStorage.setItem(CHAVE_USUARIO, JSON.stringify(usuarioLogado));
-        } else {
-            localStorage.removeItem(CHAVE_USUARIO);
-        }
-    }, [usuarioLogado]);
+        async function recuperarSessao() {
+            const token = localStorage.getItem(CHAVE_TOKEN);
 
-    const gerarTag = () => {
-        const letras = "abcdefghijklmnopqrstuvwxyz";
-        const numeros = "0123456789";
-
-        let tag = "";
-        let tagExiste = true;
-
-        while (tagExiste) {
-            let parteLetras = "";
-            let parteNumeros = "";
-
-            for (let i = 0; i < 3; i++) {
-                parteLetras += letras[Math.floor(Math.random() * letras.length)];
+            if (!token) {
+                if (ativo) setVerificandoSessao(false);
+                return;
             }
 
-            for (let i = 0; i < 4; i++) {
-                parteNumeros += numeros[Math.floor(Math.random() * numeros.length)];
+            try {
+                const resposta = await api.get("/auth/me");
+
+                if (ativo) {
+                    setUsuarioLogado(resposta.data);
+                }
+            } catch (erro) {
+                if (erro.response?.status === 401 || erro.response?.status === 403) {
+                    localStorage.removeItem(CHAVE_TOKEN);
+                }
+
+                if (ativo) {
+                    setUsuarioLogado(null);
+                }
+            } finally {
+                if (ativo) {
+                    setVerificandoSessao(false);
+                }
             }
-
-            tag = `#${parteLetras}${parteNumeros}`;
-            tagExiste = usuarios.some((usuario) => usuario.tag?.toLowerCase() === tag.toLowerCase());
         }
 
-        return tag;
-    };
+        recuperarSessao();
 
-    const cadastro = ({ nome, nomeUsuario, email, senha }) => {
-        const emailNormalizado = email.trim().toLowerCase();
-        const nomeUsuarioNormalizado = nomeUsuario.trim().toLowerCase();
-
-        const emailExistente = usuarios.find((usuario) =>usuario.email === emailNormalizado);
-
-        if (emailExistente) {
-            return {sucesso: false, mensagem: "Já existe uma conta com este e-mail"};
-        }
-
-        const novoUsuario = {id: Date.now(), nome: nome.trim(), nomeUsuario: nomeUsuarioNormalizado, tag: gerarTag(), email: emailNormalizado, telefone: "", senha};
-        setUsuarios((usuariosAtuais) => [...usuariosAtuais, novoUsuario]);
-
-        return { sucesso: true, mensagem: "Conta criada com sucesso", usuario: novoUsuario };
-    };
-
-    const login = ({ email, senha }) => {
-        const emailNormalizado = email.trim().toLowerCase();
-        const usuarioEncontrado = usuarios.find((usuario) => usuario.email === emailNormalizado && usuario.senha === senha);
-
-        if (!usuarioEncontrado) {
-            return { sucesso: false, mensagem: "E-mail ou senha inválidos" };
-        }
-
-        const usuarioSessao = {
-            id: usuarioEncontrado.id, nome: usuarioEncontrado.nome, nomeUsuario: usuarioEncontrado.nomeUsuario,
-            tag: usuarioEncontrado.tag, email: usuarioEncontrado.email, telefone: usuarioEncontrado.telefone || ""
+        return () => {
+            ativo = false;
         };
+    }, []);
 
-        setUsuarioLogado(usuarioSessao);
-        return { sucesso: true, mensagem: "Login realizado com sucesso.", usuario: usuarioSessao };
+    const cadastro = async ({ nome, nomeUsuario, email, senha }) => {
+        try {
+            const resposta = await api.post("/auth/cadastro", {
+                nome, nomeUsuario, email, senha
+            });
+
+            return {
+                sucesso: true, mensagem: "Conta criada com sucesso", usuario: resposta.data
+            };
+        } catch (erro) {
+            return {
+                sucesso: false, mensagem: obterMensagemErro(erro, "Não foi possível criar sua conta")
+            };
+        }
+    };
+
+    const login = async ({ identificador, email, senha }) => {
+        try {
+            const resposta = await api.post("/auth/login", {
+                identificador: identificador ?? email,
+                senha
+            });
+
+            const { token, usuario } = resposta.data;
+
+            if (!token || !usuario) {
+                return {
+                    sucesso: false, mensagem: "Resposta de autenticação inválida"
+                };
+            }
+
+            localStorage.setItem(CHAVE_TOKEN, token);
+            setUsuarioLogado(usuario);
+
+            return {
+                sucesso: true, mensagem: "Login realizado com sucesso", usuario
+            };
+        } catch (erro) {
+            return {
+                sucesso: false, mensagem: obterMensagemErro(erro, "Não foi possível realizar o login")
+            };
+        }
     };
 
     const logout = () => {
+        localStorage.removeItem(CHAVE_TOKEN);
         setUsuarioLogado(null);
     };
 
-    const buscarUsuarioPorIdentidade = (nomeUsuario, tag) => {
-        return usuarios.find((usuario) => usuario.nomeUsuario?.toLowerCase() === nomeUsuario.trim().toLowerCase() && usuario.tag?.toLowerCase() === tag.trim().toLowerCase());
+    const atualizarPerfil = () => {
+        return {
+            sucesso: false,
+            mensagem: "A edição de perfil ainda não está disponível"
+        };
     };
 
-    const atualizarPerfil = (dados) => {
-        if (!usuarioLogado) {
-            return {sucesso: false, mensagem: "Nenhum usuário logado"};
+    const buscarUsuarioPorIdentidade = async (nomeUsuario, tag) => {
+        const nome = nomeUsuario?.trim();
+        const tagFormatada = tag?.trim().replace(/^#/, "");
+
+        if (!nome || !/^\d{4}$/.test(tagFormatada)) {
+            return null;
         }
 
-        const emailNormalizado = dados.email.trim().toLowerCase();
-        const nomeUsuarioNormalizado = dados.nomeUsuario.trim().toLowerCase();
-        const emailExistente = usuarios.find((usuario) => usuario.email === emailNormalizado && String(usuario.id) !== String(usuarioLogado.id));
+        try {
+            const resposta = await api.get("/usuarios/buscar", {
+                params: {
+                    nomeUsuario: nome,
+                    tag: tagFormatada
+                }
+            });
 
-        if (emailExistente) {
-            return {
-                sucesso: false, mensagem: "Este e-mail já está sendo utilizado"
-            };
+            return resposta.data;
+        } catch (erro) {
+            if (erro.response?.status === 404) {
+                return null;
+            }
+
+            throw erro;
+        }
+    };
+
+    const buscarUsuarioPorId = async (usuarioId) => {
+        if (!usuarioId) {
+            return null;
         }
 
-        const usuarioAtualizado = {...usuarioLogado, nome: dados.nome.trim(), nomeUsuario: nomeUsuarioNormalizado, email: emailNormalizado, telefone: dados.telefone?.trim() || ""};
+        try {
+            const resposta = await api.get(`/usuarios/${usuarioId}`);
+            return resposta.data;
+        } catch (erro) {
+            if (erro.response?.status === 404) {
+                return null;
+            }
 
-        setUsuarios((usuariosAtuais) =>
-            usuariosAtuais.map((usuario) =>
-                String(usuario.id) === String(usuarioLogado.id)
-                    ? {
-                        ...usuario, nome: usuarioAtualizado.nome, nomeUsuario: usuarioAtualizado.nomeUsuario, email: usuarioAtualizado.email, telefone: usuarioAtualizado.telefone
-                    }
-                    : usuario
-            )
-        );
-
-        setUsuarioLogado(usuarioAtualizado);
-        return {sucesso: true, mensagem: "Perfil atualizado com sucesso"};
+            throw erro;
+        }
     };
 
     return (
         <AuthContext.Provider
             value={{
-                usuarioLogado, usuarios, estaLogado: Boolean(usuarioLogado),
-                login, cadastro, logout, atualizarPerfil, buscarUsuarioPorIdentidade
+                usuarioLogado,
+                usuarios: [],
+                estaLogado: Boolean(usuarioLogado),
+                verificandoSessao,
+                login,
+                cadastro,
+                logout,
+                atualizarPerfil,
+                buscarUsuarioPorIdentidade,
+                buscarUsuarioPorId
             }}
         >
             {children}
@@ -141,9 +178,7 @@ export function useAuth() {
     const context = useContext(AuthContext);
 
     if (!context) {
-        throw new Error(
-            "useAuth deve ser usado dentro de um AuthProvider."
-        );
+        throw new Error("useAuth deve ser usado dentro de um AuthProvider");
     }
 
     return context;

@@ -119,6 +119,8 @@ router.get("/:id", autenticar, equipeController.buscarPorId);
  */
 router.get("/:equipeId/tarefas", autenticar, tarefaEquipeController.listarPorEquipe);
 
+router.patch("/:equipeId/tarefas/:tarefaId/responsavel", autenticar, tarefaEquipeController.atualizarResponsavel);
+
 /**
  * @swagger
  * /equipes/{equipeId}/tarefas/{tarefaId}:

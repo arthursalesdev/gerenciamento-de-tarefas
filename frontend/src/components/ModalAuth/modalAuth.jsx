@@ -21,6 +21,7 @@ function ModalAuth({ aberto, aoFechar, modoInicial = "login" }) {
 
     const [erros, setErros] = useState({});
     const [mensagemErro, setMensagemErro] = useState("");
+    const [carregando, setCarregando] = useState(false);
 
     useEffect(() => {
         if (aberto) {
@@ -46,19 +47,33 @@ function ModalAuth({ aberto, aoFechar, modoInicial = "login" }) {
     const validarFormulario = () => {
         const novosErros = {};
 
-        if (modo === "cadastro" && !nome.trim()) {
-            novosErros.nome = "Informe seu nome";
-        }
+        if (modo === "cadastro") {
+            if (!nome.trim()) {
+                novosErros.nome = "Informe seu nome";
+            }
 
-        if (!email.trim()) {
-            novosErros.email = "Informe seu e-mail";
-        } else if (!validarEmail(email)) {
-            novosErros.email = "Informe um e-mail válido";
+            const usuarioNormalizado = nomeUsuario.trim().toLowerCase();
+
+            if (!usuarioNormalizado) {
+                novosErros.nomeUsuario = "Informe um nome de usuário";
+            } else if (!/^[a-z0-9_]{3,50}$/.test(usuarioNormalizado)) {
+                novosErros.nomeUsuario = "Use de 3 a 50 caracteres: letras, números ou _";
+            }
+
+            if (!email.trim()) {
+                novosErros.email = "Informe seu e-mail";
+            } else if (!validarEmail(email)) {
+                novosErros.email = "Informe um e-mail válido";
+            }
+        } else {
+            if (!email.trim()) {
+                novosErros.email = "Informe seu e-mail ou nome de usuário";
+            }
         }
 
         if (!senha) {
             novosErros.senha = "Informe sua senha";
-        } else if (senha.length < 6) {
+        } else if (modo === "cadastro" && senha.length < 6) {
             novosErros.senha = "A senha deve ter pelo menos 6 caracteres";
         }
 
@@ -70,54 +85,65 @@ function ModalAuth({ aberto, aoFechar, modoInicial = "login" }) {
             }
         }
 
-        if (modo === "cadastro") {
-            if (!nomeUsuario.trim()) {
-                novosErros.nomeUsuario = "Informe um nome de usuário";
-            } else if (nomeUsuario.trim().length < 3) {
-                novosErros.nomeUsuario = "Use pelo menos 3 caracteres";
-            } else if (!/^[a-zA-Z0-9_]+$/.test(nomeUsuario)) {
-                novosErros.nomeUsuario = "Use apenas letras, números e _";
-            }
-        }
-
         setErros(novosErros);
         return Object.keys(novosErros).length === 0;
     };
 
-    const enviarFormulario = () => {
+    const enviarFormulario = async () => {
+        if (carregando) {
+            return;
+        }
+
         if (!validarFormulario()) {
             return;
         }
 
         setMensagemErro("");
+        setCarregando(true);
 
-        if (modo === "login") {
-            const resultado = login({ email, senha });
+        try {
+            if (modo === "login") {
+                const resultado = await login({
+                    identificador: email.trim(),
+                    senha
+                });
+
+                if (!resultado.sucesso) {
+                    setMensagemErro(resultado.mensagem);
+                    return;
+                }
+
+                limparFormulario();
+                aoFechar();
+                navigate("/tarefas");
+                return;
+            }
+
+            const resultado = await cadastro({
+                nome: nome.trim(),
+                nomeUsuario: nomeUsuario.trim().toLowerCase(),
+                email: email.trim().toLowerCase(),
+                senha
+            });
 
             if (!resultado.sucesso) {
                 setMensagemErro(resultado.mensagem);
                 return;
             }
 
-            limparFormulario();
-            aoFechar();
-            navigate("/tarefas");
-            return;
+            setModo("login");
+            setNome("");
+            setNomeUsuario("");
+            setSenha("");
+            setConfirmarSenha("");
+            setErros({});
+            setMensagemErro("");
+        } catch (erro) {
+            console.error("Erro inesperado na autenticação:", erro);
+            setMensagemErro("Ocorreu um erro inesperado. Tente novamente");
+        } finally {
+            setCarregando(false);
         }
-
-        const resultado = cadastro({ nome, nomeUsuario, email, senha });
-
-        if (!resultado.sucesso) {
-            setMensagemErro(resultado.mensagem);
-            return;
-        }
-
-        setModo("login");
-        setNome("");
-        setSenha("");
-        setConfirmarSenha("");
-        setErros({});
-        setMensagemErro("");
     };
 
     const trocarModo = () => {
@@ -150,20 +176,25 @@ function ModalAuth({ aberto, aoFechar, modoInicial = "login" }) {
 
                 <Stack spacing={2.2}>
                     {modo === "cadastro" && (
-                        <TextField 
-                            label="Nome" value={nome} onChange={(event) => setNome(event.target.value)} 
-                            error={Boolean(erros.nome)} helperText={erros.nome} fullWidth autoFocus 
-                        />
+                        <>
+                            <TextField
+                                label="Nome" value={nome} onChange={(event) => setNome(event.target.value)}
+                                error={Boolean(erros.nome)} helperText={erros.nome} fullWidth autoFocus disabled={carregando}
+                            />
+
+                            <TextField
+                                label="Nome de usuário" value={nomeUsuario} onChange={(event) => setNomeUsuario(event.target.value)}
+                                error={Boolean(erros.nomeUsuario)} fullWidth disabled={carregando}
+                                helperText={
+                                    erros.nomeUsuario || "De 3 a 50 caracteres, utilizando letras, números ou _"
+                                }
+                            />
+                        </>
                     )}
 
-                    <TextField 
-                        label="Nome de usuário" value={nomeUsuario} onChange={(event) => setNomeUsuario(event.target.value)} 
-                        error={Boolean(erros.nomeUsuario)} helperText={ erros.nomeUsuario || "Sua tag será gerada automaticamente" } fullWidth 
-                    />
-
                     <TextField
-                        label="E-mail" type="email" value={email} onChange={(event) => setEmail(event.target.value)}
-                        error={Boolean(erros.email)} helperText={erros.email} fullWidth autoFocus={modo === "login"}
+                        label={modo === "login" ? "E-mail ou nome de usuário" : "E-mail"} type={modo === "login" ? "text" : "email"} value={email} onChange={(event) => setEmail(event.target.value)}
+                        error={Boolean(erros.email)} helperText={erros.email} fullWidth autoFocus={modo === "login"} disabled={carregando}
                     />
 
                     <TextField
@@ -185,8 +216,12 @@ function ModalAuth({ aberto, aoFechar, modoInicial = "login" }) {
                     </Typography>
                 )}
 
-                <Button variant="contained" fullWidth onClick={enviarFormulario} sx={{ mt: 3, py: 1.15, bgcolor: "primary.main", color: "primary.contrastText", "&:hover": { bgcolor: "primary.dark" } }}>
-                    {modo === "login" ? "Entrar" : "Criar conta"}
+                <Button variant="contained" fullWidth onClick={enviarFormulario} disabled={carregando}
+                    sx={{
+                        mt: 3, py: 1.15, bgcolor: "primary.main", color: "primary.contrastText", "&:hover": { bgcolor: "primary.dark" }
+                    }}
+                >
+                    {carregando ? "Aguarde..." : modo === "login" ? "Entrar" : "Criar conta"}
                 </Button>
 
                 <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.5} sx={{ mt: 2.5 }}>

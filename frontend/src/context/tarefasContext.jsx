@@ -1,73 +1,343 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import api from "../services/api";
+import { useAuth } from "./authContext";
 
 const TarefasContext = createContext();
 const CHAVE_TAREFAS = "tarefas";
 
+const statusParaFrontend = {
+    PENDENTE: "pendente", EM_ANDAMENTO: "andamento", CONCLUIDA: "concluido"
+};
+
+const statusParaBackend = {
+    pendente: "PENDENTE", andamento: "EM_ANDAMENTO", concluido: "CONCLUIDA"
+};
+
+function normalizarTarefa(tarefa) {
+    return {
+        ...tarefa,
+        status: statusParaFrontend[tarefa.status] || tarefa.status,
+        dataLimite: tarefa.dataLimite ? String(tarefa.dataLimite).slice(0, 10) : "",
+        prioridade: tarefa.prioridade || "MEDIA"
+    };
+}
+
+function lerTarefasLocais() {
+    try {
+        const salvas = JSON.parse(localStorage.getItem(CHAVE_TAREFAS) || "[]");
+        return Array.isArray(salvas) ? salvas : [];
+    } catch {
+        return [];
+    }
+}
+
+function mensagemErro(error) {
+    return (error.response?.data?.message || error.response?.data?.mensagem || error.message || "Não foi possível salvar a tarefa");
+}
+
 export function TarefasProvider({ children }) {
-    const [tarefas, setTarefas] = useState(() => {
-        const tarefasSalvas = localStorage.getItem(CHAVE_TAREFAS);
+    const { usuarioLogado, verificandoSessao } = useAuth();
 
-        if (!tarefasSalvas) {
-            return [];
-        }
-
-        const tarefasConvertidas = JSON.parse(tarefasSalvas);
-
-        return Array.isArray(tarefasConvertidas)
-            ? tarefasConvertidas
-            : [];
-    });
+    const [tarefasLocais, setTarefasLocais] = useState(lerTarefasLocais);
+    const [tarefasApi, setTarefasApi] = useState([]);
+    const [tarefasEquipesApi, setTarefasEquipesApi] = useState([]);
+    const [carregandoTarefas, setCarregandoTarefas] = useState(false);
+    const [erroTarefas, setErroTarefas] = useState("");
 
     useEffect(() => {
-        localStorage.setItem(CHAVE_TAREFAS, JSON.stringify(tarefas));
-    }, [tarefas]);
+        localStorage.setItem(CHAVE_TAREFAS, JSON.stringify(tarefasLocais));
+    }, [tarefasLocais]);
 
-    const criarTarefa = (dados) => {
-        const novaTarefa = {
-            id: Date.now(),
-            titulo: dados.titulo,
-            descricao: dados.descricao,
-            status: dados.status,
-            dataLimite: dados.dataLimite,
-            usuarioId: dados.usuarioId,
-            equipeId: dados.equipeId
+    useEffect(() => {
+        if (verificandoSessao) return;
+
+        if (!usuarioLogado) {
+            setTarefasApi([]);
+            setErroTarefas("");
+            return;
+        }
+
+        let ativo = true;
+
+        async function carregar() {
+            setCarregandoTarefas(true);
+            setErroTarefas("");
+
+            try {
+                const resposta = await api.get("/tarefas");
+                const dados = resposta.data;
+                const lista = Array.isArray(dados) ? dados : Array.isArray(dados.tarefas) ? dados.tarefas : [];
+
+                if (ativo) {
+                    setTarefasApi(lista.map(normalizarTarefa));
+                }
+            } catch (error) {
+                if (ativo) {
+                    setErroTarefas(mensagemErro(error));
+                }
+            } finally {
+                if (ativo) setCarregandoTarefas(false);
+            }
+        }
+
+        carregar();
+
+        return () => {
+            ativo = false;
+        };
+    }, [usuarioLogado?.id, verificandoSessao]);
+
+    useEffect(() => {
+        if (verificandoSessao) return;
+
+        if (!usuarioLogado?.id) {
+            setTarefasEquipesApi([]);
+            return;
+        }
+
+        let ativo = true;
+
+        async function carregarTarefasEquipes() {
+            try {
+                const respostaEquipes = await api.get("/equipes");
+                const dadosEquipes = respostaEquipes.data;
+                const equipes = Array.isArray(dadosEquipes)
+                    ? dadosEquipes
+                    : Array.isArray(dadosEquipes.equipes)
+                        ? dadosEquipes.equipes
+                        : [];
+
+                const respostasTarefas = await Promise.all(equipes.map((equipe) => api.get(`/equipes/${equipe.id}/tarefas`)));
+                const tarefasCompartilhadas = respostasTarefas.flatMap(
+                    (resposta, indice) => {
+                        const dados = resposta.data;
+
+                        const lista = Array.isArray(dados)
+                            ? dados
+                            : Array.isArray(dados.tarefas)
+                                ? dados.tarefas
+                                : [];
+
+                        return lista.map((tarefa) =>
+                            normalizarTarefa({
+                                ...tarefa,
+                                equipeId: equipes[indice].id
+                            })
+                        );
+                    }
+                );
+
+                if (ativo) {
+                    setTarefasEquipesApi(tarefasCompartilhadas);
+                }
+            } catch (error) {
+                if (ativo) {
+                    setErroTarefas(mensagemErro(error));
+                }
+            }
+        }
+
+        carregarTarefasEquipes();
+
+        return () => {
+            ativo = false;
+        };
+    }, [usuarioLogado?.id, verificandoSessao]);
+
+    const tarefas = [
+        ...tarefasLocais.map((tarefa) => ({
+            ...tarefa,
+            origemPersistencia: "local"
+        })),
+
+        ...tarefasApi
+            .filter((tarefa) =>
+                !tarefasLocais.some(
+                    (local) =>
+                        !local.equipeId &&
+                        String(local.id) === String(tarefa.id)
+                )
+            )
+            .map((tarefa) => ({
+                ...tarefa,
+                origemPersistencia: "api"
+            })),
+
+        ...tarefasEquipesApi.map((tarefa) => ({
+            ...tarefa,
+            origemPersistencia: "api"
+        }))
+    ];
+
+    const criarTarefa = async (dados) => {
+        const ehTarefaEquipe = dados.equipeId !== null && dados.equipeId !== undefined;
+
+        const payload = {
+            titulo: dados.titulo, descricao: dados.descricao,
+            dataLimite: dados.dataLimite || null, prioridade: dados.prioridade || "MEDIA"
         };
 
-        setTarefas((tarefasAtuais) => [...tarefasAtuais, novaTarefa]);
+        if (ehTarefaEquipe) {
+            payload.equipeId = Number(dados.equipeId);
 
-        return novaTarefa;
+            const responsavelId = dados.responsavelId;
+
+            if (responsavelId !== null && responsavelId !== undefined && responsavelId !== "") {
+                payload.responsavelId = Number(responsavelId);
+            }
+        }
+
+        const resposta = await api.post("/tarefas", payload);
+        let tarefaCriada = resposta.data;
+
+        if (!ehTarefaEquipe) {
+            if (dados.status && dados.status !== "pendente") {
+                const atualizacao = await api.put(`/tarefas/${tarefaCriada.id}`, { status: statusParaBackend[dados.status] });
+                tarefaCriada = atualizacao.data;
+            }
+
+            const tarefaNormalizada = normalizarTarefa(tarefaCriada);
+
+            setTarefasApi((atuais) => [
+                ...atuais,
+                tarefaNormalizada
+            ]);
+
+            return tarefaNormalizada;
+        }
+
+        const tarefaNormalizada = normalizarTarefa(tarefaCriada);
+
+        setTarefasEquipesApi((atuais) => [
+            ...atuais,
+            tarefaNormalizada
+        ]);
+
+        return tarefaNormalizada;
     };
 
-    const atualizarTarefa = (id, dadosAtualizados) => {
-        setTarefas((tarefasAtuais) =>
-            tarefasAtuais.map((tarefa) =>
-                tarefa.id === id
-                    ? {
-                        ...tarefa, ...dadosAtualizados
-                    }
+    const atualizarTarefa = async (id, dadosAtualizados) => {
+        const tarefaLocal = tarefasLocais.find((tarefa) => String(tarefa.id) === String(id));
+
+        if (tarefaLocal) {
+            setTarefasLocais((atuais) =>
+                atuais.map((tarefa) =>
+                    String(tarefa.id) === String(id)
+                        ? { ...tarefa, ...dadosAtualizados }
+                        : tarefa
+                )
+            );
+
+            return;
+        }
+
+        const tarefaEquipe = tarefasEquipesApi.find((tarefa) => String(tarefa.id) === String(id));
+
+        const payload = {
+            titulo: dadosAtualizados.titulo,
+            descricao: dadosAtualizados.descricao,
+            status: dadosAtualizados.status
+                ? statusParaBackend[dadosAtualizados.status]
+                : undefined,
+            prioridade: dadosAtualizados.prioridade,
+            dataLimite: dadosAtualizados.dataLimite || null
+        };
+
+        Object.keys(payload).forEach((chave) => {
+            if (payload[chave] === undefined) {
+                delete payload[chave];
+            }
+        });
+
+
+        if (tarefaEquipe) {
+            const alterouResponsavel =
+                Object.prototype.hasOwnProperty.call(
+                    dadosAtualizados,
+                    "responsavelId"
+                ) &&
+                String(dadosAtualizados.responsavelId ?? "") !==
+                String(tarefaEquipe.responsavelId ?? "");
+
+            const resposta = await api.put(
+                `/equipes/${tarefaEquipe.equipeId}/tarefas/${id}`,
+                payload
+            );
+
+            let atualizada = normalizarTarefa(resposta.data);
+
+            setTarefasEquipesApi((atuais) =>
+                atuais.map((tarefa) =>
+                    String(tarefa.id) === String(id) &&
+                        String(tarefa.equipeId) === String(tarefaEquipe.equipeId)
+                        ? atualizada
+                        : tarefa
+                )
+            );
+
+            if (alterouResponsavel) {
+                atualizada = await atualizarResponsavel(id, tarefaEquipe.equipeId, dadosAtualizados.responsavelId);
+            }
+
+            return atualizada;
+        }
+
+        const resposta = await api.put(`/tarefas/${id}`, payload);
+        const atualizada = normalizarTarefa(resposta.data);
+
+        setTarefasApi((atuais) => atuais.map((tarefa) => String(tarefa.id) === String(id) ? atualizada : tarefa));
+
+        return atualizada;
+    };
+
+    const atualizarResponsavel = async (tarefaId, equipeId, responsavelId) => {
+        const resposta = await api.patch(`/equipes/${equipeId}/tarefas/${tarefaId}/responsavel`, { responsavelId });
+        const tarefaAtualizada = normalizarTarefa(resposta.data);
+
+        setTarefasEquipesApi((atuais) =>
+            atuais.map((tarefa) =>
+                String(tarefa.id) === String(tarefaId) &&
+                    String(tarefa.equipeId) === String(equipeId)
+                    ? tarefaAtualizada
                     : tarefa
             )
         );
+
+        return tarefaAtualizada;
     };
 
-    const excluirTarefa = (id) => {
-        setTarefas((tarefasAtuais) => tarefasAtuais.filter((tarefa) => tarefa.id !== id));
+    const excluirTarefa = async (id) => {
+        const tarefaLocal = tarefasLocais.find((tarefa) => String(tarefa.id) === String(id));
+
+        if (tarefaLocal) {
+            setTarefasLocais((atuais) => atuais.filter((tarefa) => String(tarefa.id) !== String(id)));
+            return;
+        }
+
+        const tarefaEquipe = tarefasEquipesApi.find((tarefa) => String(tarefa.id) === String(id));
+
+        if (tarefaEquipe) {
+            await api.delete(`/equipes/${tarefaEquipe.equipeId}/tarefas/${id}`);
+            setTarefasEquipesApi((atuais) => atuais.filter((tarefa) => String(tarefa.id) !== String(id)));
+            return;
+        }
+
+        await api.delete(`/tarefas/${id}`);
+        setTarefasApi((atuais) => atuais.filter((tarefa) => String(tarefa.id) !== String(id)));
     };
 
     const removerResponsavelDaEquipe = (usuarioId, equipeId) => {
-        setTarefas((tarefasAtuais) =>
-            tarefasAtuais.map((tarefa) =>
-                String(tarefa.usuarioId) === String(usuarioId) && String(tarefa.equipeId) === String(equipeId)
-                    ? {
-                        ...tarefa, usuarioId: null
-                    }
-                    : tarefa
+        setTarefasLocais((atuais) =>
+            atuais.map((tarefa) =>
+                String(tarefa.usuarioId) === String(usuarioId) &&
+                    String(tarefa.equipeId) === String(equipeId) ? { ...tarefa, usuarioId: null } : tarefa
             )
         );
     };
 
     return (
-        <TarefasContext.Provider value={{ tarefas, criarTarefa, atualizarTarefa, excluirTarefa, removerResponsavelDaEquipe }}>
+        <TarefasContext.Provider
+            value={{ tarefas, criarTarefa, atualizarTarefa, atualizarResponsavel, excluirTarefa, removerResponsavelDaEquipe, carregandoTarefas, erroTarefas }}>
             {children}
         </TarefasContext.Provider>
     );
@@ -77,7 +347,9 @@ export function useTarefas() {
     const context = useContext(TarefasContext);
 
     if (!context) {
-        throw new Error("useTarefas deve ser usado dentro de um TarefasProvider");
+        throw new Error(
+            "useTarefas deve ser usado dentro de um TarefasProvider"
+        );
     }
 
     return context;

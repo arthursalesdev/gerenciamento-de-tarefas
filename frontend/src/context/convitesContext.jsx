@@ -1,11 +1,20 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import api from "../services/api";
+import { useAuth } from "./authContext";
 import { useMembros } from "./membrosContext";
+import { useEquipes } from "./equipesContext";
 
 const ConvitesContext = createContext();
 const CHAVE_CONVITES = "convitesEquipes";
 
 export function ConvitesProvider({ children }) {
-    const { adicionarMembro, buscarMembro } = useMembros();
+    const { recarregarMembros } = useMembros();
+    const { recarregarEquipes } = useEquipes();
+    const { usuarioLogado } = useAuth();
+
+    const [convitesApi, setConvitesApi] = useState([]);
+    const [carregandoConvites, setCarregandoConvites] = useState(false);
+    const [erroConvites, setErroConvites] = useState("");
 
     const [convites, setConvites] = useState(() => {
         const convitesSalvos = localStorage.getItem(CHAVE_CONVITES);
@@ -13,87 +22,83 @@ export function ConvitesProvider({ children }) {
     });
 
     useEffect(() => {
-        localStorage.setItem(CHAVE_CONVITES, JSON.stringify(convites));
-    }, [convites]);
-
-    const enviarConvite = ({ equipeId, convidadoId, convidadorId, cargoId = "membro" }) => {
-        const jaEMembro = buscarMembro(convidadoId, equipeId);
-
-        if (jaEMembro) {
-            return {
-                sucesso: false, mensagem: "Este usuário já faz parte da equipe."
-            };
+        if (!usuarioLogado?.id) {
+            setConvitesApi([]);
+            setErroConvites("");
+            return;
         }
 
-        const convitePendente = convites.find(
-            (convite) =>
-                String(convite.equipeId) === String(equipeId) &&
-                String(convite.convidadoId) === String(convidadoId) &&
-                convite.status === "pendente"
-        );
+        let ativo = true;
 
-        if (convitePendente) {
-            return {
-                sucesso: false, mensagem: "Já existe um convite pendente para este usuário."
-            };
-        }
+        const carregarConvites = async () => {
+            setCarregandoConvites(true);
+            setErroConvites("");
 
-        const novoConvite = {
-            id: Date.now(), equipeId, convidadoId, convidadorId,
-            cargoId, status: "pendente", criadoEm: new Date().toISOString()
+            try {
+                const resposta = await api.get("/convites-equipes/recebidos");
+
+                if (ativo) {
+                    setConvitesApi(resposta.data.filter((convite) => convite.status === "PENDENTE"));
+                }
+            } catch (error) {
+                if (ativo) {
+                    setErroConvites(error.response?.data?.message || error.response?.data?.mensagem || "Não foi possível carregar os convites");
+                }
+            } finally {
+                if (ativo) setCarregandoConvites(false);
+            }
         };
 
-        setConvites((convitesAtuais) => [...convitesAtuais, novoConvite]);
+        carregarConvites();
 
-        return {
-            sucesso: true, convite: novoConvite
+        return () => {
+            ativo = false;
         };
+    }, [usuarioLogado?.id]);
+
+    const enviarConvite = async ({ equipeId, convidadoId, convidadorId, cargoId = "membro" }) => {
+        try {
+            const resposta = await api.post("/convites-equipes", { equipeId: Number(equipeId), convidadoId: Number(convidadoId), cargo: cargoId.toUpperCase() });
+
+            return {
+                sucesso: true, convite: resposta.data
+            };
+        } catch (error) {
+            return {
+                sucesso: false, mensagem: error.response?.data?.message || error.response?.data?.mensagem || "Não foi possível enviar o convite"
+            };
+        }
     };
 
-    const aceitarConvite = (conviteId) => {
-        const convite = convites.find((convite) => convite.id === conviteId);
+    const aceitarConvite = async (conviteId) => {
+        const resposta = await api.patch( `/convites-equipes/${conviteId}/aceitar`);
 
-        if (!convite || convite.status !== "pendente") {
-            return false;
+        setConvitesApi((atuais) => atuais.filter((convite) => String(convite.id) !== String(conviteId)));
+
+        try {
+            const equipesAtualizadas = await recarregarEquipes();
+            await recarregarMembros(equipesAtualizadas);
+        } catch (error) {
+            console.error("Convite aceito, mas houve erro ao atualizar equipes e membros:", error);
         }
 
-        adicionarMembro(convite.convidadoId, convite.equipeId, convite.cargoId);
-
-        setConvites((convitesAtuais) =>
-            convitesAtuais.map((conviteAtual) =>
-                conviteAtual.id === conviteId
-                    ? {
-                        ...conviteAtual, status: "aceito"
-                    }
-                    : conviteAtual
-            )
-        );
-
-        return true;
+        return resposta.data;
     };
 
-    const recusarConvite = (conviteId) => {
-        setConvites((convitesAtuais) =>
-            convitesAtuais.map((convite) =>
-                convite.id === conviteId
-                    ? {
-                        ...convite, status: "recusado"
-                    }
-                    : convite
-            )
-        );
+    const recusarConvite = async (conviteId) => {
+        const resposta = await api.patch(`/convites-equipes/${conviteId}/recusar`);
+
+        setConvitesApi((atuais) => atuais.filter((convite) => String(convite.id) !== String(conviteId)));
+
+        return resposta.data;
     };
 
-    const cancelarConvite = (conviteId) => {
-        setConvites((convitesAtuais) =>
-            convitesAtuais.map((convite) =>
-                convite.id === conviteId
-                    ? {
-                        ...convite, status: "cancelado"
-                    }
-                    : convite
-            )
-        );
+    const cancelarConvite = async (conviteId) => {
+        const resposta = await api.patch(`/convites-equipes/${conviteId}/cancelar`);
+
+        setConvitesApi((atuais) => atuais.filter((convite) => String(convite.id) !== String(conviteId)));
+
+        return resposta.data;
     };
 
     const buscarConvitesDoUsuario = (usuarioId) => {
@@ -111,12 +116,7 @@ export function ConvitesProvider({ children }) {
     };
 
     return (
-        <ConvitesContext.Provider
-            value={{
-                convites, enviarConvite, aceitarConvite, recusarConvite, 
-                cancelarConvite, buscarConvitesDoUsuario, buscarConvitesDaEquipe
-            }}
-        >
+        <ConvitesContext.Provider value={{ convites, convitesApi, carregandoConvites, erroConvites, enviarConvite, aceitarConvite, recusarConvite, cancelarConvite, buscarConvitesDoUsuario, buscarConvitesDaEquipe }}>
             {children}
         </ConvitesContext.Provider>
     );
