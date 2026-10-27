@@ -22,6 +22,9 @@ export function ConvitesProvider({ children }) {
     });
 
     useEffect(() => {
+        setConvitesApi([]);
+        setCarregandoConvites(false);
+        
         if (!usuarioLogado?.id) {
             setConvitesApi([]);
             setErroConvites("");
@@ -71,7 +74,7 @@ export function ConvitesProvider({ children }) {
     };
 
     const aceitarConvite = async (conviteId) => {
-        const resposta = await api.patch( `/convites-equipes/${conviteId}/aceitar`);
+        const resposta = await api.patch(`/convites-equipes/${conviteId}/aceitar`);
 
         setConvitesApi((atuais) => atuais.filter((convite) => String(convite.id) !== String(conviteId)));
 

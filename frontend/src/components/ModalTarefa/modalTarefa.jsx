@@ -43,7 +43,7 @@ function ModalTarefa({
         }
         setErros({});
         setErroSalvar("");
-    }, [modo, tarefaSelecionada, aberto, areaPessoal, responsaveis]);
+    }, [modo, tarefaSelecionada, aberto, areaPessoal]);
 
     const validarFormulario = () => {
         const novosErros = {};
