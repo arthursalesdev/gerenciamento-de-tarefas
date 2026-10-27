@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useRef } from "react";
 
 import api from "../services/api";
 import { useAuth } from "./authContext";
@@ -43,6 +43,12 @@ export function TarefasProvider({ children }) {
     const { equipesApi } = useEquipes();
     const { membrosApi } = useMembros();
 
+    const usuarioAtualRef = useRef(usuarioLogado?.id);
+    const requisicaoPessoalRef = useRef(0);
+    const requisicaoEquipesRef = useRef(0);
+
+    usuarioAtualRef.current = usuarioLogado?.id;
+
     const [tarefasLocais, setTarefasLocais] = useState(lerTarefasLocais);
     const [tarefasApi, setTarefasApi] = useState([]);
     const [tarefasEquipesApi, setTarefasEquipesApi] = useState([]);
@@ -54,15 +60,20 @@ export function TarefasProvider({ children }) {
     }, [tarefasLocais]);
 
     useEffect(() => {
-        if (verificandoSessao) return;
+        const usuarioDaConsulta = usuarioLogado?.id;
+        const requisicao = ++requisicaoPessoalRef.current;
 
-        if (!usuarioLogado) {
-            setTarefasApi([]);
+        setTarefasApi([]);
+        setCarregandoTarefas(false);
+
+        if (verificandoSessao || !usuarioDaConsulta) {
             setErroTarefas("");
             return;
         }
 
         let ativo = true;
+
+        const consultaAtual = () => ativo && requisicao === requisicaoPessoalRef.current && String(usuarioAtualRef.current) === String(usuarioDaConsulta);
 
         async function carregar() {
             setCarregandoTarefas(true);
@@ -71,17 +82,23 @@ export function TarefasProvider({ children }) {
             try {
                 const resposta = await api.get("/tarefas");
                 const dados = resposta.data;
-                const lista = Array.isArray(dados) ? dados : Array.isArray(dados.tarefas) ? dados.tarefas : [];
 
-                if (ativo) {
+                const lista = Array.isArray(dados)
+                    ? dados
+                    : Array.isArray(dados?.tarefas)
+                        ? dados.tarefas : [];
+
+                if (consultaAtual()) {
                     setTarefasApi(lista.map(normalizarTarefa));
                 }
             } catch (error) {
-                if (ativo) {
+                if (consultaAtual()) {
                     setErroTarefas(mensagemErro(error));
                 }
             } finally {
-                if (ativo) setCarregandoTarefas(false);
+                if (consultaAtual()) {
+                    setCarregandoTarefas(false);
+                }
             }
         }
 
@@ -89,36 +106,43 @@ export function TarefasProvider({ children }) {
 
         return () => {
             ativo = false;
+            requisicaoPessoalRef.current += 1;
         };
     }, [usuarioLogado?.id, verificandoSessao]);
 
     useEffect(() => {
-        if (verificandoSessao) return;
+        const usuarioDaConsulta = usuarioLogado?.id;
+        const requisicao = ++requisicaoEquipesRef.current;
 
-        if (!usuarioLogado?.id) {
-            setTarefasEquipesApi([]);
+        setTarefasEquipesApi([]);
+
+        if (verificandoSessao || !usuarioDaConsulta) {
             return;
         }
 
         let ativo = true;
+
+        const consultaAtual = () =>
+            ativo &&
+            requisicao === requisicaoEquipesRef.current &&
+            String(usuarioAtualRef.current) === String(usuarioDaConsulta);
 
         async function carregarTarefasEquipes() {
             const minhasEquipes = equipesApi.filter((equipe) =>
                 membrosApi.some(
                     (membro) =>
                         String(membro.equipeId) === String(equipe.id) &&
-                        String(membro.usuarioId) === String(usuarioLogado.id)
+                        String(membro.usuarioId) === String(usuarioDaConsulta)
                 )
             );
 
             if (!minhasEquipes.length) {
-                setTarefasEquipesApi([]);
                 return;
             }
 
             const resultados = await Promise.allSettled(minhasEquipes.map((equipe) => api.get(`/equipes/${equipe.id}/tarefas`)));
 
-            if (!ativo) return;
+            if (!consultaAtual()) return;
 
             const tarefasCompartilhadas = [];
             let houveErro = false;
@@ -139,19 +163,18 @@ export function TarefasProvider({ children }) {
                 tarefasCompartilhadas.push(
                     ...lista.map((tarefa) =>
                         normalizarTarefa({
-                            ...tarefa,
-                            equipeId: minhasEquipes[indice].id
+                            ...tarefa, equipeId: minhasEquipes[indice].id
                         })
                     )
                 );
             });
 
+            if (!consultaAtual()) return;
+
             setTarefasEquipesApi(tarefasCompartilhadas);
 
             if (houveErro) {
                 setErroTarefas("Não foi possível atualizar as tarefas de uma ou mais equipes");
-            } else {
-                setErroTarefas("");
             }
         }
 
@@ -159,6 +182,7 @@ export function TarefasProvider({ children }) {
 
         return () => {
             ativo = false;
+            requisicaoEquipesRef.current += 1;
         };
     }, [usuarioLogado?.id, verificandoSessao, equipesApi, membrosApi]);
 
