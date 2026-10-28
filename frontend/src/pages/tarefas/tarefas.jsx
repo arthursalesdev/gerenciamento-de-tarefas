@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { Box, Button, Card, Container, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, Card, Container, Stack, Typography } from "@mui/material";
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 
 import { Navbar } from "../../components/Navbar/navbar";
@@ -23,6 +23,7 @@ function Tarefas() {
 
     const [tarefaParaExcluir, setTarefaParaExcluir] = useState(null);
     const [tarefaSelecionada, setTarefaSelecionada] = useState(null);
+    const [erroOperacao, setErroOperacao] = useState("");
 
     const { areaAtual, areaPessoalAtiva } = useArea();
     const { usuarioLogado, usuarios } = useAuth();
@@ -31,13 +32,48 @@ function Tarefas() {
     const { buscarMembrosDaEquipe } = useMembros();
     const { pode } = usePermissoes();
 
+    const membrosDaEquipe = areaPessoalAtiva ? [] : buscarMembrosDaEquipe(areaAtual.equipeId);
+
     const responsaveis = areaPessoalAtiva
         ? usuarioLogado
             ? [usuarioLogado] : []
-        : buscarMembrosDaEquipe(areaAtual.equipeId)
-            .map((membro) => usuarios.find((usuario) => String(usuario.id) === String(membro.usuarioId))).filter(Boolean);
+        : membrosDaEquipe.map((membro) => membro.usuario).filter(Boolean);
 
     const podeAlterarTarefa = pode("editarTarefa") || pode("alterarStatus") || pode("alterarResponsavel") || pode("alterarData");
+
+    const buscarMeuCargoNaEquipe = (equipeId) => {
+        const membro = buscarMembrosDaEquipe(equipeId).find((item) => String(item.usuarioId) === String(usuarioLogado?.id));
+
+        return membro?.cargoId ?? null;
+    };
+
+    const podeEditarTarefa = (tarefa) => {
+        if (tarefa.equipeId == null) {
+            return podeAlterarTarefa;
+        }
+
+        const cargo = buscarMeuCargoNaEquipe(tarefa.equipeId);
+
+        if (cargo === "dono" || cargo === "lider") {
+            return true;
+        }
+
+        if (cargo === "membro") {
+            return (tarefa.responsavelId != null && String(tarefa.responsavelId) === String(usuarioLogado?.id));
+        }
+
+        return false;
+    };
+
+    const podeExcluirTarefa = (tarefa) => {
+        if (tarefa.equipeId == null) {
+            return pode("excluirTarefa");
+        }
+
+        const cargo = buscarMeuCargoNaEquipe(tarefa.equipeId);
+
+        return cargo === "dono" || cargo === "lider";
+    };
 
     const buscarOrigemTarefa = (tarefa) => {
         if (!tarefa.equipeId) {
@@ -48,24 +84,39 @@ function Tarefas() {
         return equipe?.nome || "Equipe";
     };
 
-    console.log("tarefas:", tarefas);
-    console.log("é array?", Array.isArray(tarefas));
-    console.log("areaPessoalAtiva:", areaPessoalAtiva);
-    console.log("usuarioLogado:", usuarioLogado);
-    console.log("areaAtual:", areaAtual);
-
     const tarefasDaArea = areaPessoalAtiva
-        ? tarefas.filter((tarefa) => String(tarefa.usuarioId) === String(usuarioLogado?.id))
+        ? tarefas.filter((tarefa) => {
+            if (tarefa.equipeId != null) {
+                return String(tarefa.responsavelId) === String(usuarioLogado?.id);
+            }
+
+            return String(tarefa.usuarioId) === String(usuarioLogado?.id);
+        })
         : tarefas.filter((tarefa) => String(tarefa.equipeId) === String(areaAtual.equipeId));
 
-    const buscarUsuario = (usuarioId) => {
-        if (!usuarioId) {
+
+    const buscarUsuario = (usuarioId, equipeId = null) => {
+        if (usuarioId === null || usuarioId === undefined) {
             return null;
         }
 
-        return (
-            usuarios.find((usuario) => String(usuario.id) === String(usuarioId)) || null
-        );
+        if (String(usuarioLogado?.id) === String(usuarioId)) {
+            return usuarioLogado;
+        }
+
+        if (equipeId != null) {
+            const membro = buscarMembrosDaEquipe(equipeId).find((item) => String(item.usuarioId) === String(usuarioId));
+
+            if (membro?.usuario) {
+                return membro.usuario;
+            }
+        }
+
+        return usuarios.find((usuario) => String(usuario.id) === String(usuarioId)) || null;
+    };
+
+    const buscarResponsavel = (tarefa) => {
+        return buscarUsuario(tarefa.responsavelId, tarefa.equipeId);
     };
 
     const abrirModalCriar = () => {
@@ -85,19 +136,37 @@ function Tarefas() {
         setModalExcluirAberto(true);
     };
 
-    const confirmarExclusao = () => {
+    const confirmarExclusao = async () => {
         if (!tarefaParaExcluir) {
             return;
         }
 
-        excluirTarefa(tarefaParaExcluir.id);
-        setModalExcluirAberto(false);
-        setTarefaParaExcluir(null);
+        setErroOperacao("");
+
+        try {
+            await excluirTarefa(tarefaParaExcluir.id, tarefaParaExcluir);
+            setModalExcluirAberto(false);
+            setTarefaParaExcluir(null);
+        } catch (error) {
+            setErroOperacao(error.response?.data?.message || error.response?.data?.mensagem || error.message || "Não foi possível excluir a tarefa");
+        }
     };
 
     const tarefasPendentes = tarefasDaArea.filter((tarefa) => tarefa.status === "pendente");
     const tarefasAndamento = tarefasDaArea.filter((tarefa) => tarefa.status === "andamento");
     const tarefasConcluidas = tarefasDaArea.filter((tarefa) => tarefa.status === "concluido");
+
+    const tarefaEditadaDeEquipe = modoModal === "editar" && tarefaSelecionada?.equipeId != null;
+
+    const equipeDoModal = tarefaEditadaDeEquipe
+        ? tarefaSelecionada.equipeId
+        : areaPessoalAtiva
+            ? null : areaAtual.equipeId;
+
+    const cargoNoModal = equipeDoModal != null ? buscarMeuCargoNaEquipe(equipeDoModal) : null;
+    const podeAdministrarResponsavel = cargoNoModal === "dono" || cargoNoModal === "lider";
+    const responsaveisDoModal = equipeDoModal == null ? responsaveis : buscarMembrosDaEquipe(equipeDoModal).map((membro) => membro.usuario).filter(Boolean);
+    const podeEditarNoModal = tarefaEditadaDeEquipe ? podeEditarTarefa(tarefaSelecionada) : pode("editarTarefa");
 
     return (
         <Box sx={{ minHeight: "100vh", bgcolor: "background.default", color: "text.primary", transition: "background-color 0.2s ease" }}>
@@ -128,12 +197,17 @@ function Tarefas() {
                         </Button>
                     )}
                 </Box>
+                {erroOperacao && (
+                    <Alert severity="error" onClose={() => setErroOperacao("")} sx={{ mb: 2 }}>
+                        {erroOperacao}
+                    </Alert>
+                )}
                 <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems="stretch">
                     <Card sx={{ p: 2, flex: 1, width: "100%", minWidth: 0 }}>
                         <CabecalhoColuna titulo="Pendentes" quantidade={tarefasPendentes.length} status="pendente" />
                         <Stack spacing={2}>
                             {tarefasPendentes.map((tarefa) => (
-                                <CardTarefa key={tarefa.id} {...tarefa} usuario={buscarUsuario(tarefa.usuarioId)} origem={areaPessoalAtiva ? buscarOrigemTarefa(tarefa) : null} podeEditar={podeAlterarTarefa} podeExcluir={pode("excluirTarefa")} aoEditar={() => abrirModalEditar(tarefa)} aoExcluir={() => abrirModalExcluir(tarefa)} />
+                                <CardTarefa key={`${tarefa.origemPersistencia}-${tarefa.equipeId ?? "pessoal"}-${tarefa.id}`} {...tarefa} usuario={buscarResponsavel(tarefa)} origem={areaPessoalAtiva ? buscarOrigemTarefa(tarefa) : null} podeEditar={podeEditarTarefa(tarefa)} podeExcluir={podeExcluirTarefa(tarefa)} aoEditar={() => abrirModalEditar(tarefa)} aoExcluir={() => abrirModalExcluir(tarefa)} />
 
                             ))}
                         </Stack>
@@ -143,7 +217,7 @@ function Tarefas() {
                         <CabecalhoColuna titulo="Em Andamento" quantidade={tarefasAndamento.length} status="andamento" />
                         <Stack spacing={2}>
                             {tarefasAndamento.map((tarefa) => (
-                                <CardTarefa key={tarefa.id} {...tarefa} usuario={buscarUsuario(tarefa.usuarioId)} origem={areaPessoalAtiva ? buscarOrigemTarefa(tarefa) : null} podeEditar={podeAlterarTarefa} podeExcluir={pode("excluirTarefa")} aoEditar={() => abrirModalEditar(tarefa)} aoExcluir={() => abrirModalExcluir(tarefa)} />
+                                <CardTarefa key={`${tarefa.origemPersistencia}-${tarefa.equipeId ?? "pessoal"}-${tarefa.id}`} {...tarefa} usuario={buscarResponsavel(tarefa)} origem={areaPessoalAtiva ? buscarOrigemTarefa(tarefa) : null} podeEditar={podeEditarTarefa(tarefa)} podeExcluir={podeExcluirTarefa(tarefa)} aoEditar={() => abrirModalEditar(tarefa)} aoExcluir={() => abrirModalExcluir(tarefa)} />
                             ))}
                         </Stack>
                     </Card>
@@ -152,21 +226,26 @@ function Tarefas() {
                         <CabecalhoColuna titulo="Concluído" quantidade={tarefasConcluidas.length} status="concluido" />
                         <Stack spacing={2}>
                             {tarefasConcluidas.map((tarefa) => (
-                                <CardTarefa key={tarefa.id} {...tarefa} usuario={buscarUsuario(tarefa.usuarioId)} origem={areaPessoalAtiva ? buscarOrigemTarefa(tarefa) : null} podeEditar={podeAlterarTarefa} podeExcluir={pode("excluirTarefa")} aoEditar={() => abrirModalEditar(tarefa)} aoExcluir={() => abrirModalExcluir(tarefa)} />
+                                <CardTarefa key={`${tarefa.origemPersistencia}-${tarefa.equipeId ?? "pessoal"}-${tarefa.id}`} {...tarefa} usuario={buscarResponsavel(tarefa)} origem={areaPessoalAtiva ? buscarOrigemTarefa(tarefa) : null} podeEditar={podeEditarTarefa(tarefa)} podeExcluir={podeExcluirTarefa(tarefa)} aoEditar={() => abrirModalEditar(tarefa)} aoExcluir={() => abrirModalExcluir(tarefa)} />
                             ))}
                         </Stack>
                     </Card>
                 </Stack>
             </Container>
             <ModalTarefa
-                aberto={modalAberto} aoFechar={() => setModalAberto(false)} modo={modoModal} tarefaSelecionada={tarefaSelecionada} responsaveis={responsaveis} areaPessoal={areaPessoalAtiva}
-                podeEditar={pode("editarTarefa")} podeAlterarStatus={pode("alterarStatus")} podeAlterarResponsavel={pode("alterarResponsavel")} podeAlterarData={pode("alterarData")}
+                aberto={modalAberto} aoFechar={() => setModalAberto(false)} modo={modoModal} tarefaSelecionada={tarefaSelecionada} responsaveis={responsaveisDoModal} areaPessoal={equipeDoModal == null} podeEditar={podeEditarNoModal}
+                podeAlterarStatus={tarefaEditadaDeEquipe ? podeEditarNoModal : pode("alterarStatus")}
+                podeAlterarResponsavel={equipeDoModal != null ? podeAdministrarResponsavel : pode("alterarResponsavel")}
+                podeAlterarData={tarefaEditadaDeEquipe ? podeEditarNoModal : pode("alterarData")}
 
-                aoSalvar={(dados) => {
+                aoSalvar={async (dados) => {
                     if (modoModal === "editar") {
-                        atualizarTarefa(tarefaSelecionada.id, dados);
+                        await atualizarTarefa(tarefaSelecionada.id, dados, tarefaSelecionada);
                     } else {
-                        criarTarefa({ ...dados, equipeId: areaPessoalAtiva ? null : areaAtual.equipeId });
+                        await criarTarefa({
+                            ...dados,
+                            equipeId: areaPessoalAtiva ? null : areaAtual.equipeId
+                        });
                     }
                 }}
             />

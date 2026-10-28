@@ -2,7 +2,7 @@ import { Box, Button, Container, Stack, Typography } from "@mui/material";
 
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 
-function CtaFinal() {
+function CtaFinal({ aoComecar, aoEntrar }) {
     return (
         <Box component="section" sx={{ py: { xs: 6, md: 8 } }}>
             <Container maxWidth="xl">
@@ -24,10 +24,10 @@ function CtaFinal() {
                         </Box>
                         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
                             <Stack spacing={0.8} alignItems="center" sx={{ width: "100%", maxWidth: 220 }}>
-                                <Button variant="contained" endIcon={<ArrowForwardRoundedIcon />} fullWidth sx={{ py: 0.9, bgcolor: "primary.main", color: "primary.contrastText" }}>
+                                <Button variant="contained" endIcon={<ArrowForwardRoundedIcon />} fullWidth onClick={aoComecar} sx={{ py: 0.9, bgcolor: "primary.main", color: "primary.contrastText" }}>
                                     Começar agora
                                 </Button>
-                                <Button variant="outlined" color="inherit" fullWidth sx={{ fontSize: "0.8rem", color: "text.secondary", borderColor: "primary.main", "&:hover": { color: "text.primary", bgcolor: "transparent" } }}>
+                                <Button variant="outlined" color="inherit" fullWidth onClick={aoEntrar} sx={{ fontSize: "0.8rem", color: "text.secondary", borderColor: "primary.main", "&:hover": { color: "text.primary", bgcolor: "transparent" } }}>
                                     Já tenho uma conta
                                 </Button>
                             </Stack>

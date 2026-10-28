@@ -12,7 +12,7 @@ import MailOutlineOutlinedIcon from '@mui/icons-material/MailOutlineOutlined';
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined';
 
-import ThemeToggle from "../../components/ThemeToggle";
+import ThemeToggle from "../../components/themeToggle";
 import SeletorArea from "../SeletorArea/seletorArea";
 import ModalAuth from "../ModalAuth/modalAuth";
 import ModalConvites from "../ModalConvites/modalConvites";
@@ -145,7 +145,7 @@ export const Navbar = () => {
                                     <Typography variant="body2" color="text.secondary">
                                         <strong>{usuarioLogado?.nomeUsuario}</strong>{" "}
                                         <Box component="span" sx={{ color: "primary.main" }}>
-                                            {usuarioLogado?.tag}
+                                            #{usuarioLogado?.tag}
                                         </Box>
                                     </Typography>
                                 </Box>
@@ -172,13 +172,6 @@ export const Navbar = () => {
                         {convitesPendentes.length > 0 && (
                             <Badge badgeContent={convitesPendentes.length} color="error" sx={{ mr: 1 }} />
                         )}
-                    </MenuItem>
-
-                    <MenuItem onClick={fecharMenuUsuario}>
-                        <SettingsOutlinedIcon sx={{ mr: 1.5, fontSize: 19, color: "primary.main" }} />
-                        <Typography variant="body2">
-                            Configurações
-                        </Typography>
                     </MenuItem>
                 </Menu>
             </AppBar>

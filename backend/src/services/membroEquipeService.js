@@ -1,8 +1,7 @@
 import membroEquipeRepository from "../repositories/membroEquipeRepository.js";
 import equipeRepository from "../repositories/equipeRepository.js";
-import usuarioRepository from "../repositories/usuarioRepository.js";
 
-import { AdicionarMembroDTO, AlterarCargoMembroDTO } from "../dtos/membroEquipeDTO.js";
+import { AlterarCargoMembroDTO } from "../dtos/membroEquipeDTO.js";
 import membroEquipeMapper from "../mappers/membroEquipeMapper.js";
 
 import AppError from "../errors/AppError.js";
@@ -24,37 +23,6 @@ class MembroEquipeService {
         const membros = await membroEquipeRepository.listarPorEquipe(equipeId);
 
         return membroEquipeMapper.paraListaResponseDTO(membros);
-    }
-
-    async adicionar(equipeId, dados, usuarioLogadoId) {
-        const equipe = await equipeRepository.buscarPorId(equipeId);
-
-        if (!equipe) {
-            throw new AppError("Equipe não encontrada", 404);
-        }
-
-        const executor = await membroEquipeRepository.buscar(usuarioLogadoId, equipeId);
-
-        if (!executor || (executor.cargo !== "DONO" && executor.cargo !== "LIDER")) {
-            throw new AppError("Você não possui permissão para adicionar membros", 403);
-        }
-
-        const dto = new AdicionarMembroDTO(dados);
-        const usuario = await usuarioRepository.buscarPorId(dto.usuarioId);
-
-        if (!usuario) {
-            throw new AppError("Usuário não encontrado", 404);
-        }
-
-        const membroExistente = await membroEquipeRepository.buscar(dto.usuarioId, equipeId);
-
-        if (membroExistente) {
-            throw new AppError("Usuário já pertence a esta equipe", 409);
-        }
-
-        const membro = await membroEquipeRepository.adicionar(dto.usuarioId, equipeId);
-
-        return membroEquipeMapper.paraResponseDTO(membro);
     }
 
     async remover(equipeId, usuarioId, usuarioLogadoId) {
@@ -112,7 +80,7 @@ class MembroEquipeService {
             );
         }
 
-        await membroEquipeRepository.remover(usuarioId, equipeId);
+        await membroEquipeRepository.removerComDesatribuicao(usuarioId, equipeId);
     }
 
     async alterarCargo(equipeId, usuarioId, dados, usuarioLogadoId) {
@@ -181,7 +149,7 @@ class MembroEquipeService {
             );
         }
 
-        await membroEquipeRepository.remover(usuarioLogadoId, equipeId);
+        await membroEquipeRepository.removerComDesatribuicao(usuarioLogadoId, equipeId);
     }
 
     async transferirPropriedade(equipeId, novoDonoId, usuarioLogadoId) {

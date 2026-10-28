@@ -1,51 +1,96 @@
-import { createContext, useContext, useEffect, useState } from "react";
-
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { useAuth } from "./authContext";
+import api from "../services/api";
 
 const EquipesContext = createContext();
-const CHAVE_EQUIPES = "equipes";
-const equipesIniciais = [];
 
 export function EquipesProvider({ children }) {
     const { usuarioLogado } = useAuth();
+    const usuarioAtualRef = useRef(usuarioLogado?.id);
+    const requisicaoEquipesRef = useRef(0);
 
-    const [equipes, setEquipes] = useState(() => {
-        const equipesSalvas = localStorage.getItem(CHAVE_EQUIPES);
-        return equipesSalvas ? JSON.parse(equipesSalvas) : equipesIniciais;
-    });
+    usuarioAtualRef.current = usuarioLogado?.id;
 
-    useEffect(() => {
-        localStorage.setItem(CHAVE_EQUIPES, JSON.stringify(equipes));
-    }, [equipes]);
+    const [equipesApi, setEquipesApi] = useState([]);
+    const [carregandoEquipes, setCarregandoEquipes] = useState(false);
+    const [erroEquipes, setErroEquipes] = useState("");
 
-    const buscarEquipePorId = (id) => {
-        return equipes.find((equipe) => String(equipe.id) === String(id));
-    };
+    const recarregarEquipes = useCallback(async () => {
+        const usuarioDaConsulta = usuarioLogado?.id;
+        const requisicao = ++requisicaoEquipesRef.current;
 
-    const criarEquipe = (nome) => {
-        if (!usuarioLogado) {
-            return null;
+        if (!usuarioDaConsulta) {
+            setEquipesApi([]);
+            return [];
         }
 
-        const novaEquipe = { id: Date.now(), nome: nome.trim(), donoId: usuarioLogado.id };
-        setEquipes((equipesAtuais) => [...equipesAtuais, novaEquipe]);
+        const consultaAtual = () => requisicao === requisicaoEquipesRef.current && String(usuarioAtualRef.current) === String(usuarioDaConsulta);
+
+        setCarregandoEquipes(true);
+        setErroEquipes("");
+
+        try {
+            const resposta = await api.get("/equipes");
+            const dados = resposta.data;
+            const lista = Array.isArray(dados)
+                ? dados
+                : Array.isArray(dados?.equipes)
+                    ? dados.equipes : [];
+
+            if (consultaAtual()) {
+                setEquipesApi(lista);
+            }
+
+            return consultaAtual() ? lista : [];
+        } catch (error) {
+            if (consultaAtual()) {
+                setErroEquipes(error.response?.data?.message || error.response?.data?.mensagem || "Não foi possível carregar as equipes");
+                throw error;
+            }
+
+            return [];
+        } finally {
+            if (consultaAtual()) {
+                setCarregandoEquipes(false);
+            }
+        }
+    }, [usuarioLogado?.id]);
+
+    useEffect(() => {
+        if (!usuarioLogado?.id) {
+            setEquipesApi([]);
+            setErroEquipes("");
+            requisicaoEquipesRef.current += 1;
+            setCarregandoEquipes(false);
+            return;
+        }
+
+        recarregarEquipes().catch(() => { });
+    }, [usuarioLogado?.id, recarregarEquipes]);
+
+    const buscarEquipePorId = (id) => {
+        return equipesVisiveis.find((equipe) => String(equipe.id) === String(id));
+    };
+
+    const criarEquipe = async (nome) => {
+        if (!usuarioLogado) {
+            throw new Error("É necessário estar autenticado.");
+        }
+
+        const resposta = await api.post("/equipes", {
+            nome: nome.trim()
+        });
+
+        const novaEquipe = resposta.data;
+        setEquipesApi((atuais) => [...atuais, novaEquipe]);
+
         return novaEquipe;
     };
 
-    const transferirDono = (equipeId, novoDonoId) => {
-        setEquipes((equipesAtuais) =>
-            equipesAtuais.map((equipe) =>
-                String(equipe.id) === String(equipeId)
-                    ? {
-                        ...equipe, donoId: novoDonoId
-                    }
-                    : equipe
-            )
-        );
-    };
+    const equipesVisiveis = usuarioLogado?.id ? equipesApi : [];
 
     return (
-        <EquipesContext.Provider value={{ equipes, buscarEquipePorId, criarEquipe, transferirDono }}>
+        <EquipesContext.Provider value={{ equipes: equipesVisiveis, equipesApi, recarregarEquipes, carregandoEquipes, erroEquipes, buscarEquipePorId, criarEquipe }}>
             {children}
         </EquipesContext.Provider>
     );

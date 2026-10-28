@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { Box, Button, Dialog, DialogContent, IconButton, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Dialog, DialogContent, IconButton, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 
 import AvatarUsuario from "../AvatarUsuario/avatarUsuario";
@@ -14,26 +14,34 @@ function ModalTarefa({
     const [descricao, setDescricao] = useState("");
     const [status, setStatus] = useState("pendente");
     const [dataLimite, setDataLimite] = useState("");
-    const [usuarioId, setUsuarioId] = useState("");
+    const [responsavelId, setResponsavelId] = useState("sem-responsavel");
 
     const [erros, setErros] = useState({});
+    const [prioridade, setPrioridade] = useState("MEDIA");
+    const [salvando, setSalvando] = useState(false);
+    const [erroSalvar, setErroSalvar] = useState("");
 
     useEffect(() => {
         if (modo === "editar" && tarefaSelecionada) {
             setTitulo(tarefaSelecionada.titulo || "");
             setDescricao(tarefaSelecionada.descricao || "");
             setStatus(tarefaSelecionada.status || "pendente");
+            setPrioridade(tarefaSelecionada.prioridade || "MEDIA");
             setDataLimite(tarefaSelecionada.dataLimite || "");
-            setUsuarioId(tarefaSelecionada.usuarioId || "sem-responsavel");
+            setResponsavelId(
+                tarefaSelecionada.responsavelId ?? "sem-responsavel"
+            );
         } else {
             setTitulo("");
             setDescricao("");
             setStatus("pendente");
+            setPrioridade("MEDIA");
             setDataLimite("");
-            setUsuarioId(areaPessoal && responsaveis.length > 0 ? responsaveis[0].id : "");
+            setResponsavelId("sem-responsavel");
         }
         setErros({});
-    }, [modo, tarefaSelecionada, aberto, areaPessoal, responsaveis]);
+        setErroSalvar("");
+    }, [modo, tarefaSelecionada, aberto, areaPessoal]);
 
     const validarFormulario = () => {
         const novosErros = {};
@@ -50,13 +58,32 @@ function ModalTarefa({
         return Object.keys(novosErros).length === 0;
     };
 
-    const salvar = () => {
-        if (!validarFormulario()) {
+    const salvar = async () => {
+        if (salvando || !validarFormulario()) {
             return;
         }
 
-        aoSalvar({ titulo, descricao, status, dataLimite, usuarioId: usuarioId === "sem-responsavel" ? "" : usuarioId });
-        aoFechar();
+        setSalvando(true);
+        setErroSalvar("");
+
+        try {
+            const dados = {
+                titulo, descricao, status, prioridade, dataLimite
+            };
+
+            if (!areaPessoal && podeAlterarResponsavel) {
+                dados.responsavelId =
+                    responsavelId === "sem-responsavel" || responsavelId === ""
+                        ? null : Number(responsavelId);
+            }
+
+            await aoSalvar(dados);
+            aoFechar();
+        } catch (error) {
+            setErroSalvar(error.response?.data?.message || error.response?.data?.mensagem || error.message || "Não foi possível salvar a tarefa");
+        } finally {
+            setSalvando(false);
+        }
     };
 
     const cancelar = () => {
@@ -80,11 +107,16 @@ function ModalTarefa({
                 </Box>
 
                 <Stack spacing={2.5}>
+                    {erroSalvar && (
+                        <Alert severity="error">
+                            {erroSalvar}
+                        </Alert>
+                    )}
                     <TextField label="Título" value={titulo} onChange={(event) => setTitulo(event.target.value)} error={Boolean(erros.titulo)} helperText={erros.titulo} fullWidth autoFocus disabled={modo === "editar" && !podeEditar} />
                     <TextField label="Descrição" value={descricao} onChange={(event) => setDescricao(event.target.value)} fullWidth multiline rows={3} disabled={modo === "editar" && !podeEditar} />
                     <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
                         {!areaPessoal && (
-                            <TextField select label="Responsável" value={usuarioId} onChange={(event) => setUsuarioId(event.target.value)} error={Boolean(erros.usuarioId)} helperText={erros.usuarioId} fullWidth disabled={modo === "editar" && !podeAlterarResponsavel}>
+                            <TextField select label="Responsável" value={responsavelId} onChange={(event) => setResponsavelId(event.target.value)} fullWidth disabled={salvando || !podeAlterarResponsavel}>
                                 <MenuItem value="sem-responsavel">
                                     Sem responsável
                                 </MenuItem>
@@ -124,6 +156,12 @@ function ModalTarefa({
                         </TextField>
                     </Stack>
 
+                    <TextField select label="Prioridade" value={prioridade} onChange={(event) => setPrioridade(event.target.value)} fullWidth disabled={salvando || (modo === "editar" && !podeEditar)}>
+                        <MenuItem value="BAIXA">Baixa</MenuItem>
+                        <MenuItem value="MEDIA">Média</MenuItem>
+                        <MenuItem value="ALTA">Alta</MenuItem>
+                    </TextField>
+
                     <TextField
                         label="Data limite" type="date" value={dataLimite} onChange={(event) => setDataLimite(event.target.value)}
                         error={Boolean(erros.dataLimite)} helperText={erros.dataLimite} fullWidth disabled={modo === "editar" && !podeAlterarData}
@@ -135,8 +173,8 @@ function ModalTarefa({
                     <Button variant="text" color="inherit" onClick={cancelar} sx={{ color: "text.secondary" }}>
                         Cancelar
                     </Button>
-                    <Button variant="contained" onClick={salvar} sx={{ bgcolor: "primary.main", color: "primary.contrastText", px: 3, "&:hover": { bgcolor: "primary.dark" } }}>
-                        {modo === "editar" ? "Atualizar" : "Salvar"}
+                    <Button variant="contained" onClick={salvar} disabled={salvando} sx={{ bgcolor: "primary.main", color: "primary.contrastText", px: 3, "&:hover": { bgcolor: "primary.dark" } }}>
+                        {salvando ? "Salvando..." : modo === "editar" ? "Atualizar" : "Salvar"}
                     </Button>
                 </Stack>
             </DialogContent>

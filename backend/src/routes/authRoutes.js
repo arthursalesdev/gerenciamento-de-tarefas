@@ -25,6 +25,7 @@ const router = Router();
  *             type: object
  *             required:
  *               - nome
+ *               - nomeUsuario
  *               - email
  *               - senha
  *             properties:
@@ -32,6 +33,13 @@ const router = Router();
  *                 type: string
  *                 minLength: 1
  *                 example: Arthur
+ *               nomeUsuario:
+ *                 type: string
+ *                 minLength: 3
+ *                 maxLength: 50
+ *                 pattern: '^[a-z0-9_]{3,50}$'
+ *                 description: Nome de usuário com letras, números ou sublinhado.
+ *                 example: arthur
  *               email:
  *                 type: string
  *                 format: email
@@ -55,7 +63,7 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Erro'
  *       409:
- *         description: E-mail já cadastrado
+ *         description: E-mail ou nome de usuário já cadastrado
  *         content:
  *           application/json:
  *             schema:
@@ -68,6 +76,7 @@ router.post("/cadastro", authController.cadastrar);
  * /auth/login:
  *   post:
  *     summary: Realizar login
+ *     description: Aceita e-mail ou nome de usuário como identificador.
  *     tags: [Cadastro / Auth]
  *     requestBody:
  *       required: true
@@ -76,15 +85,16 @@ router.post("/cadastro", authController.cadastrar);
  *           schema:
  *             type: object
  *             required:
- *               - email
+ *               - identificador
  *               - senha
  *             properties:
- *               email:
+ *               identificador:
  *                 type: string
- *                 format: email
- *                 example: arthur@teste.com
+ *                 description: E-mail ou nome de usuário cadastrado.
+ *                 example: arthur
  *               senha:
  *                 type: string
+ *                 format: password
  *                 example: "123456"
  *     responses:
  *       200:
@@ -100,7 +110,7 @@ router.post("/cadastro", authController.cadastrar);
  *             schema:
  *               $ref: '#/components/schemas/Erro'
  *       401:
- *         description: E-mail ou senha inválidos
+ *         description: Usuário ou senha inválidos
  *         content:
  *           application/json:
  *             schema:

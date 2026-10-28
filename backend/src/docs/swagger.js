@@ -41,6 +41,14 @@ const options = {
                             type: "string",
                             example: "Arthur"
                         },
+                        nomeUsuario: {
+                            type: "string",
+                            example: "arthur"
+                        },
+                        tag: {
+                            type: "string",
+                            example: "1234"
+                        },
                         email: {
                             type: "string",
                             format: "email",
@@ -275,18 +283,6 @@ const options = {
                             enum: ["DONO", "LIDER", "MEMBRO", "VISUALIZADOR"],
                             example: "MEMBRO"
                         },
-                    }
-                },
-
-                AdicionarMembro: {
-                    type: "object",
-                    required: ["usuarioId"],
-                    properties: {
-                        usuarioId: {
-                            type: "integer",
-                            minimum: 1,
-                            example: 2
-                        }
                     }
                 },
 

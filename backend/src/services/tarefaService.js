@@ -12,32 +12,21 @@ class TarefaService {
     }
 
     async listarPorEquipe(equipeId, usuarioId) {
-        // Valida o identificador da equipe
         if (!Number.isInteger(equipeId) || equipeId <= 0) {
             throw new AppError("ID da equipe inválido", 400);
         }
 
-        // Verifica se o usuário pertence à equipe
-        const membro = await membroEquipeRepository.buscar(
-            usuarioId,
-            equipeId
-        );
+        const membro = await membroEquipeRepository.buscar(usuarioId, equipeId);
 
         if (!membro) {
-            throw new AppError(
-                "Você não possui acesso a esta equipe",
-                403
-            );
+            throw new AppError("Você não possui acesso a esta equipe", 403);
         }
 
-        // Busca as tarefas compartilhadas da equipe
         const tarefas = await tarefaRepository.listarPorEquipe(equipeId);
-
         return TarefaMapper.paraListaResponseDTO(tarefas);
     }
 
     async buscarPorIdNaEquipe(tarefaId, equipeId, usuarioId) {
-        // Valida os identificadores
         if (!Number.isInteger(equipeId) || equipeId <= 0) {
             throw new AppError("ID da equipe inválido", 400);
         }
@@ -46,24 +35,13 @@ class TarefaService {
             throw new AppError("ID da tarefa inválido", 400);
         }
 
-        // Verifica se o usuário pertence à equipe
-        const membro = await membroEquipeRepository.buscar(
-            usuarioId,
-            equipeId
-        );
+        const membro = await membroEquipeRepository.buscar(usuarioId, equipeId);
 
         if (!membro) {
-            throw new AppError(
-                "Você não possui acesso a esta equipe",
-                403
-            );
+            throw new AppError("Você não possui acesso a esta equipe", 403);
         }
 
-        // Busca a tarefa exclusivamente na equipe informada
-        const tarefa = await tarefaRepository.buscarPorIdNaEquipe(
-            tarefaId,
-            equipeId
-        );
+        const tarefa = await tarefaRepository.buscarPorIdNaEquipe(tarefaId, equipeId);
 
         if (!tarefa) {
             throw new AppError("Tarefa não encontrada", 404);
@@ -73,7 +51,6 @@ class TarefaService {
     }
 
     async atualizarNaEquipe(tarefaId, equipeId, dados, usuarioId) {
-        // Valida os identificadores
         if (!Number.isInteger(equipeId) || equipeId <= 0) {
             throw new AppError("ID da equipe inválido", 400);
         }
@@ -82,69 +59,36 @@ class TarefaService {
             throw new AppError("ID da tarefa inválido", 400);
         }
 
-        // Verifica se o usuário pertence à equipe
-        const membro = await membroEquipeRepository.buscar(
-            usuarioId,
-            equipeId
-        );
+        const membro = await membroEquipeRepository.buscar(usuarioId, equipeId);
 
         if (!membro) {
-            throw new AppError(
-                "Você não possui acesso a esta equipe",
-                403
-            );
+            throw new AppError("Você não possui acesso a esta equipe", 403);
         }
 
-        // Busca a tarefa na equipe informada
-        const tarefa = await tarefaRepository.buscarPorIdNaEquipe(
-            tarefaId,
-            equipeId
-        );
+        const tarefa = await tarefaRepository.buscarPorIdNaEquipe(tarefaId, equipeId);
 
         if (!tarefa) {
             throw new AppError("Tarefa não encontrada", 404);
         }
 
-        // VISUALIZADOR não pode atualizar tarefas
-        if (membro.cargo === "VISUALIZADOR") {
-            throw new AppError(
-                "Você não possui permissão para atualizar tarefas nesta equipe",
-                403
-            );
+        if (!["DONO", "LIDER", "MEMBRO"].includes(membro.cargo)) {
+            throw new AppError("Você não possui permissão para atualizar tarefas nesta equipe", 403);
         }
 
-        // MEMBRO só pode atualizar tarefas criadas ou atribuídas a ele
-        if (
-            membro.cargo === "MEMBRO" &&
-            tarefa.usuarioId !== usuarioId &&
-            tarefa.responsavelId !== usuarioId
-        ) {
-            throw new AppError(
-                "Você não possui permissão para atualizar esta tarefa",
-                403
-            );
+        if (membro.cargo === "MEMBRO" && String(tarefa.responsavelId) !== String(usuarioId)) {
+            throw new AppError("Você só pode editar tarefas atribuídas a você", 403);
         }
 
-        // Valida os campos permitidos para atualização
         const dto = new AtualizarTarefaDTO(dados);
 
-        // Atualiza a tarefa
-        const tarefaAtualizada = await tarefaRepository.atualizarNaEquipe(
-            tarefaId,
-            equipeId,
-            dto
-        );
+        const tarefaAtualizada = await tarefaRepository.atualizarNaEquipe(tarefaId, equipeId, dto);
 
         if (!tarefaAtualizada) {
             throw new AppError("Tarefa não encontrada", 404);
         }
 
-        // Registra a atualização no histórico
         await logTarefaRepository.criar({
-            tarefaId,
-            usuarioId,
-            acao: "ATUALIZADA",
-            detalhes: "Tarefa de equipe atualizada"
+            tarefaId, usuarioId, acao: "ATUALIZADA", detalhes: "Tarefa de equipe atualizada"
         });
 
         return TarefaMapper.paraResponseDTO(tarefaAtualizada);
@@ -153,69 +97,47 @@ class TarefaService {
     async criar(dados, usuarioId) {
         const dto = new CriarTarefaDTO(dados);
 
-        // Tarefa individual: mantém o comportamento existente
         if (dto.equipeId === null) {
             const tarefa = await tarefaRepository.criar({
-                ...dto,
-                usuarioId
+                ...dto, usuarioId, responsavelId: usuarioId
             });
 
             await logTarefaRepository.criar({
-                tarefaId: tarefa.id,
-                usuarioId,
-                acao: "CRIADA",
-                detalhes: "Tarefa individual criada"
+                tarefaId: tarefa.id, usuarioId, acao: "CRIADA", detalhes: "Tarefa individual criada"
             });
 
             return TarefaMapper.paraResponseDTO(tarefa);
         }
 
-        // Verifica se o criador pertence à equipe
-        const membroCriador = await membroEquipeRepository.buscar(
-            usuarioId,
-            dto.equipeId
-        );
+        const membroCriador = await membroEquipeRepository.buscar(usuarioId, dto.equipeId);
 
         if (!membroCriador) {
-            throw new AppError(
-                "Você não pertence a esta equipe",
-                403
-            );
+            throw new AppError("Você não pertence a esta equipe", 403);
         }
 
-        // VISUALIZADOR não pode criar tarefas
         if (membroCriador.cargo === "VISUALIZADOR") {
-            throw new AppError(
-                "Você não possui permissão para criar tarefas nesta equipe",
-                403
-            );
+            throw new AppError("Você não possui permissão para criar tarefas nesta equipe", 403);
         }
 
-        // Verifica o responsável informado
         if (dto.responsavelId !== null) {
-            const membroResponsavel = await membroEquipeRepository.buscar(
-                dto.responsavelId,
-                dto.equipeId
-            );
+            if (!["DONO", "LIDER"].includes(membroCriador.cargo)) {
+                throw new AppError("Somente DONO ou LIDER podem atribuir responsáveis", 403);
+            }
+
+            const membroResponsavel = await membroEquipeRepository.buscar(dto.responsavelId, dto.equipeId);
 
             if (!membroResponsavel) {
-                throw new AppError(
-                    "O responsável deve pertencer à equipe",
-                    400
-                );
-            }
-
-            // MEMBRO só pode atribuir tarefas a si mesmo
-            if (
-                membroCriador.cargo === "MEMBRO" &&
-                dto.responsavelId !== usuarioId
-            ) {
-                throw new AppError("MEMBRO só pode atribuir tarefas a si mesmo", 403);
+                throw new AppError("O responsável deve pertencer à equipe", 400);
             }
         }
 
-        const tarefa = await tarefaRepository.criar({ ...dto, usuarioId });
-        await logTarefaRepository.criar({ tarefaId: tarefa.id, usuarioId, acao: "CRIADA", detalhes: "Tarefa de equipe criada" });
+        const tarefa = await tarefaRepository.criar({
+            ...dto, usuarioId
+        });
+
+        await logTarefaRepository.criar({
+            tarefaId: tarefa.id, usuarioId, acao: "CRIADA", detalhes: "Tarefa de equipe criada"
+        });
 
         return TarefaMapper.paraResponseDTO(tarefa);
     }
@@ -242,6 +164,62 @@ class TarefaService {
         return TarefaMapper.paraResponseDTO(tarefaAtualizada);
     }
 
+    async atualizarResponsavel(tarefaId, equipeId, dados, usuarioId) {
+        if (!Number.isInteger(equipeId) || equipeId <= 0) {
+            throw new AppError("ID da equipe inválido", 400);
+        }
+
+        if (!Number.isInteger(tarefaId) || tarefaId <= 0) {
+            throw new AppError("ID da tarefa inválido", 400);
+        }
+
+        const membro = await membroEquipeRepository.buscar(usuarioId, equipeId);
+
+        if (!membro) {
+            throw new AppError("Você não possui acesso a esta equipe", 403);
+        }
+
+        if (!["DONO", "LIDER"].includes(membro.cargo)) {
+            throw new AppError("Somente DONO ou LIDER podem alterar responsáveis", 403);
+        }
+
+        const tarefa = await tarefaRepository.buscarPorIdNaEquipe(tarefaId, equipeId);
+
+        if (!tarefa) {
+            throw new AppError("Tarefa não encontrada", 404);
+        }
+
+        if (!dados || typeof dados !== "object" || Array.isArray(dados) || !Object.prototype.hasOwnProperty.call(dados, "responsavelId")) {
+            throw new AppError("Informe o campo responsavelId", 400);
+        }
+
+        const { responsavelId } = dados;
+
+        if (responsavelId !== null && (!Number.isInteger(responsavelId) || responsavelId <= 0)) {
+            throw new AppError("ID do responsável inválido", 400);
+        }
+
+        if (responsavelId !== null) {
+            const membroResponsavel = await membroEquipeRepository.buscar(responsavelId, equipeId);
+
+            if (!membroResponsavel) {
+                throw new AppError("O responsável deve pertencer à equipe", 400);
+            }
+        }
+
+        const tarefaAtualizada = await tarefaRepository.atualizarNaEquipe(tarefaId, equipeId, { responsavelId });
+
+        if (!tarefaAtualizada) {
+            throw new AppError("Tarefa não encontrada", 404);
+        }
+
+        await logTarefaRepository.criar({
+            tarefaId, usuarioId, acao: "ATUALIZADA", detalhes: "Responsável da tarefa de equipe atualizado"
+        });
+
+        return TarefaMapper.paraResponseDTO(tarefaAtualizada);
+    }
+
     async deletar(id, usuarioId) {
         const tarefa = await tarefaRepository.buscarPorId(id, usuarioId);
         if (!tarefa) {
@@ -261,60 +239,33 @@ class TarefaService {
             throw new AppError("ID da tarefa inválido", 400);
         }
 
-        const membro = await membroEquipeRepository.buscar(
-            usuarioId,
-            equipeId
-        );
+        const membro = await membroEquipeRepository.buscar(usuarioId, equipeId);
 
         if (!membro) {
-            throw new AppError(
-                "Você não possui acesso a esta equipe",
-                403
-            );
+            throw new AppError("Você não possui acesso a esta equipe", 403);
         }
 
-        const tarefa = await tarefaRepository.buscarPorIdNaEquipe(
-            tarefaId,
-            equipeId
-        );
+        const tarefa = await tarefaRepository.buscarPorIdNaEquipe(tarefaId, equipeId);
 
         if (!tarefa) {
             throw new AppError("Tarefa não encontrada", 404);
         }
 
-        if (membro.cargo === "VISUALIZADOR") {
-            throw new AppError(
-                "Você não possui permissão para excluir tarefas nesta equipe",
-                403
-            );
+        if (!["DONO", "LIDER"].includes(membro.cargo)) {
+            throw new AppError("Somente DONO ou LIDER podem excluir tarefas da equipe", 403);
         }
 
-        if (
-            membro.cargo === "MEMBRO" &&
-            tarefa.usuarioId !== usuarioId
-        ) {
-            throw new AppError(
-                "Você não possui permissão para excluir esta tarefa",
-                403
-            );
-        }
-
-        const tarefaExcluida = await tarefaRepository.deletarNaEquipe(
-            tarefaId,
-            equipeId
-        );
+        const tarefaExcluida = await tarefaRepository.deletarNaEquipe(tarefaId, equipeId);
 
         if (!tarefaExcluida) {
             throw new AppError("Tarefa não encontrada", 404);
         }
 
         await logTarefaRepository.criar({
-            tarefaId,
-            usuarioId,
-            acao: "EXCLUIDA",
-            detalhes: "Tarefa de equipe excluída"
+            tarefaId, usuarioId, acao: "EXCLUIDA", detalhes: "Tarefa de equipe excluída"
         });
     }
+
 }
 
 export default new TarefaService();

@@ -4,7 +4,7 @@ import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownR
 
 import DemoPainel from "../DemoPainel/demoPainel";
 
-function HeroLanding() {
+function HeroLanding({ aoComecar }) {
     return (
         <Box component="section" sx={{ minHeight: { md: "calc(100vh - 110px)" }, display: "flex", alignItems: "center", py: { xs: 5, sm: 6, md: 8 } }}>
             <Container maxWidth="xl">
@@ -27,7 +27,7 @@ function HeroLanding() {
                         </Typography>
 
                         <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ xs: "stretch", sm: "center" }} spacing={1.5} sx={{ mt: {xs: 3, md: 4} }}>
-                            <Button variant="contained" size="large" sx={{ px: 3, py: 1.2 }}>
+                            <Button variant="contained" size="large" onClick={aoComecar} sx={{ px: 3, py: 1.2 }}>
                                 Começar agora
                             </Button>
                             <Button variant="text" color="inherit" href="#recursos" size="large" endIcon={<KeyboardArrowDownRoundedIcon />} sx={{ color: "text.secondary" }}>
