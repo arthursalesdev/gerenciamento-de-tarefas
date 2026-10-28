@@ -119,6 +119,57 @@ router.get("/:id", autenticar, equipeController.buscarPorId);
  */
 router.get("/:equipeId/tarefas", autenticar, tarefaEquipeController.listarPorEquipe);
 
+/**
+ * @swagger
+ * /equipes/{equipeId}/tarefas/{tarefaId}/responsavel:
+ *   patch:
+ *     summary: Alterar o responsável por uma tarefa da equipe
+ *     description: Somente o dono ou um líder pode alterar o responsável.
+ *     tags: [Equipes]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: equipeId
+ *         required: true
+ *         description: ID da equipe
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *       - in: path
+ *         name: tarefaId
+ *         required: true
+ *         description: ID da tarefa
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - responsavelId
+ *             properties:
+ *               responsavelId:
+ *                 type: integer
+ *                 nullable: true
+ *                 minimum: 1
+ *                 description: ID de um membro da equipe ou null para remover o responsável.
+ *                 example: 3
+ *     responses:
+ *       200:
+ *         description: Responsável atualizado com sucesso
+ *       400:
+ *         description: Dados ou IDs inválidos
+ *       401:
+ *         description: Token ausente, inválido ou expirado
+ *       403:
+ *         description: Usuário sem permissão para alterar o responsável
+ *       404:
+ *         description: Tarefa não encontrada
+ */
 router.patch("/:equipeId/tarefas/:tarefaId/responsavel", autenticar, tarefaEquipeController.atualizarResponsavel);
 
 /**

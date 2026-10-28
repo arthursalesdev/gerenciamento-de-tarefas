@@ -116,12 +116,7 @@ function Tarefas() {
     };
 
     const buscarResponsavel = (tarefa) => {
-        const responsavelId =
-            tarefa.responsavelId ??
-            (tarefa.origemPersistencia === "local"
-                ? tarefa.usuarioId : null);
-
-        return buscarUsuario(responsavelId, tarefa.equipeId);
+        return buscarUsuario(tarefa.responsavelId, tarefa.equipeId);
     };
 
     const abrirModalCriar = () => {

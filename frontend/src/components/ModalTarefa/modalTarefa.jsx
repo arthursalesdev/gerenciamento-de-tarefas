@@ -29,9 +29,7 @@ function ModalTarefa({
             setPrioridade(tarefaSelecionada.prioridade || "MEDIA");
             setDataLimite(tarefaSelecionada.dataLimite || "");
             setResponsavelId(
-                tarefaSelecionada.responsavelId ??
-                (tarefaSelecionada.origemPersistencia === "local" ? tarefaSelecionada.usuarioId : null) ??
-                "sem-responsavel"
+                tarefaSelecionada.responsavelId ?? "sem-responsavel"
             );
         } else {
             setTitulo("");

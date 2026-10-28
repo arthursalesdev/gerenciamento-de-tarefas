@@ -2,7 +2,6 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { useAuth } from "./authContext";
 
 const AreaContext = createContext();
-const CHAVE_AREA = "areaAtual";
 const areaPessoal = { tipo: "pessoal", equipeId: null, nome: "Minhas Tarefas" };
 
 export function AreaProvider({ children }) {
@@ -11,13 +10,8 @@ export function AreaProvider({ children }) {
 
     useEffect(() => {
         if (verificandoSessao) return;
-
         setAreaAtual(areaPessoal);
     }, [usuarioLogado?.id, verificandoSessao]);
-
-    useEffect(() => {
-        localStorage.setItem(CHAVE_AREA, JSON.stringify(areaAtual));
-    }, [areaAtual]);
 
     const irParaPessoal = () => {
         setAreaAtual(areaPessoal);

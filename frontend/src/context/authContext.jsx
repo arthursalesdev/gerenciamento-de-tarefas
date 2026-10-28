@@ -104,13 +104,6 @@ export function AuthProvider({ children }) {
         setUsuarioLogado(null);
     };
 
-    const atualizarPerfil = () => {
-        return {
-            sucesso: false,
-            mensagem: "A edição de perfil ainda não está disponível"
-        };
-    };
-
     const buscarUsuarioPorIdentidade = async (nomeUsuario, tag) => {
         const nome = nomeUsuario?.trim();
         const tagFormatada = tag?.trim().replace(/^#/, "");
@@ -164,7 +157,6 @@ export function AuthProvider({ children }) {
                 login,
                 cadastro,
                 logout,
-                atualizarPerfil,
                 buscarUsuarioPorIdentidade,
                 buscarUsuarioPorId
             }}
