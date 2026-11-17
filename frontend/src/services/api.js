@@ -14,4 +14,27 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
+api.interceptors.response.use(
+    (resposta) => resposta,
+    (erro) => {
+        const requisicao = erro.config;
+        const autorizacao = requisicao?.headers?.Authorization;
+        const tokenAtual = localStorage.getItem("taskflow_token");
+
+        const rota = requisicao?.url?.split("?")[0];
+        const ehRotaPublica = rota === "/auth/login" || rota === "/auth/cadastro";
+
+        if (
+            erro.response?.status === 401 &&
+            !ehRotaPublica &&
+            tokenAtual &&
+            autorizacao === `Bearer ${tokenAtual}`
+        ) {
+            window.dispatchEvent(new Event("taskflow:sessao-expirada"));
+        }
+
+        return Promise.reject(erro);
+    }
+);
+
 export default api;

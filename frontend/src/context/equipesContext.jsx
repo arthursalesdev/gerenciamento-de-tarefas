@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useState, useCallback, useRef } from "react";
 import { useAuth } from "./authContext";
 import api from "../services/api";
 
@@ -9,7 +9,9 @@ export function EquipesProvider({ children }) {
     const usuarioAtualRef = useRef(usuarioLogado?.id);
     const requisicaoEquipesRef = useRef(0);
 
-    usuarioAtualRef.current = usuarioLogado?.id;
+    useLayoutEffect(() => {
+        usuarioAtualRef.current = usuarioLogado?.id;
+    }, [usuarioLogado?.id]);
 
     const [equipesApi, setEquipesApi] = useState([]);
     const [carregandoEquipes, setCarregandoEquipes] = useState(false);

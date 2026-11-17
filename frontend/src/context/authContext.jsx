@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import { Alert, Box, Button, Snackbar } from "@mui/material";
 import api from "../services/api";
 
 const AuthContext = createContext();
@@ -14,7 +15,60 @@ function obterMensagemErro(erro, mensagemPadrao) {
 
 export function AuthProvider({ children }) {
     const [usuarioLogado, setUsuarioLogado] = useState(null);
+
     const [verificandoSessao, setVerificandoSessao] = useState(true);
+    const [avisoSessaoAberto, setAvisoSessaoAberto] = useState(false);
+
+    const [erroRecuperacao, setErroRecuperacao] = useState(false);
+    const [tentativaRecuperacao, setTentativaRecuperacao] = useState(0);
+
+    useEffect(() => {
+        let ativo = true;
+
+        async function recuperarSessao() {
+            const token = localStorage.getItem(CHAVE_TOKEN);
+
+            setVerificandoSessao(true);
+            setErroRecuperacao(false);
+
+            if (!token) {
+                if (ativo) {
+                    setVerificandoSessao(false);
+                }
+
+                return;
+            }
+
+            try {
+                const resposta = await api.get("/auth/me");
+
+                if (ativo && localStorage.getItem(CHAVE_TOKEN) === token) {
+                    setUsuarioLogado(resposta.data);
+                }
+            } catch (erro) {
+                if (!ativo || localStorage.getItem(CHAVE_TOKEN) !== token) {
+                    return;
+                }
+
+                if (erro.response?.status === 401) {
+                    localStorage.removeItem(CHAVE_TOKEN);
+                    setUsuarioLogado(null);
+                } else {
+                    setErroRecuperacao(true);
+                }
+            } finally {
+                if (ativo) {
+                    setVerificandoSessao(false);
+                }
+            }
+        }
+
+        recuperarSessao();
+
+        return () => {
+            ativo = false;
+        };
+    }, [tentativaRecuperacao]);
 
     useEffect(() => {
         let ativo = true;
@@ -161,7 +215,53 @@ export function AuthProvider({ children }) {
                 buscarUsuarioPorId
             }}
         >
-            {children}
+            {erroRecuperacao ? (
+                <Box
+                    sx={{
+                        minHeight: "100vh",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        p: 3,
+                        bgcolor: "background.default"
+                    }}
+                >
+                    <Alert
+                        severity="error"
+                        action={
+                            <Button
+                                color="inherit"
+                                size="small"
+                                onClick={() => {
+                                    setTentativaRecuperacao((atual) => atual + 1);
+                                }}
+                            >
+                                Tentar novamente
+                            </Button>
+                        }
+                    >
+                        Não foi possível verificar sua sessão. Confira sua conexão e tente novamente.
+                    </Alert>
+                </Box>
+            ) : (
+                children
+            )}
+
+            <Snackbar
+                open={avisoSessaoAberto}
+                autoHideDuration={6000}
+                onClose={() => setAvisoSessaoAberto(false)}
+                anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+            >
+                <Alert
+                    severity="warning"
+                    variant="filled"
+                    onClose={() => setAvisoSessaoAberto(false)}
+                    sx={{ width: "100%" }}
+                >
+                    Sua sessão expirou. Entre novamente para continuar.
+                </Alert>
+            </Snackbar>
         </AuthContext.Provider>
     );
 }

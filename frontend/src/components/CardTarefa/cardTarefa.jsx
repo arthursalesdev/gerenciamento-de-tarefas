@@ -11,13 +11,6 @@ import AvatarUsuario from "../AvatarUsuario/avatarUsuario";
 function CardTarefa({ titulo, usuario, descricao, status, prioridade, dataLimite, origem, podeEditar = true, podeExcluir = true, aoEditar, aoExcluir }) {
     const [aberto, setAberto] = useState(null);
     const menuAberto = Boolean(aberto);
-    const configuracaoStatus = {
-        pendente: { label: "Pendente", cor: "warning" },
-        andamento: { label: "Em andamento", cor: "info" },
-        concluido: { label: "Concluído", cor: "success" }
-    };
-
-    const statusAtual = configuracaoStatus[status] || configuracaoStatus.pendente;
 
     const configuracaoPrioridade = {
         BAIXA: { label: "Baixa", cor: "success" },

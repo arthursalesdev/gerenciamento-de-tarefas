@@ -3,8 +3,8 @@ import { db } from "../database/connection.js";
 import { logsTarefas } from "../database/schemas/logsTarefas.js";
 
 class LogTarefaRepository {
-    async criar(dados) {
-        const resultado = await db.insert(logsTarefas).values(dados).returning();
+    async criar(dados, conexao = db) {
+        const resultado = await conexao.insert(logsTarefas).values(dados).returning();
         return resultado[0];
     }
 

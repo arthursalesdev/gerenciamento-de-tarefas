@@ -2,6 +2,7 @@ import { eq, inArray } from "drizzle-orm";
 
 import { db } from "../database/connection.js";
 import { equipes } from "../database/schemas/equipes.js";
+import { membrosEquipes } from "../database/schemas/membrosEquipes.js";
 
 class EquipeRepository {
     async listar() {
@@ -20,13 +21,23 @@ class EquipeRepository {
         return resultado[0] || null;
     }
 
-    async criar(dados) {
-        const resultado = await db
-            .insert(equipes)
-            .values(dados)
-            .returning();
+    async criarComDono(dados, usuarioId) {
+        return await db.transaction(async (tx) => {
+            const [equipe] = await tx
+                .insert(equipes)
+                .values(dados)
+                .returning();
 
-        return resultado[0];
+            await tx
+                .insert(membrosEquipes)
+                .values({
+                    usuarioId,
+                    equipeId: equipe.id,
+                    cargo: "DONO"
+                });
+
+            return equipe;
+        });
     }
 
     async atualizar(id, dados) {

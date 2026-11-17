@@ -28,13 +28,6 @@ function ModalAuth({ aberto, aoFechar, modoInicial = "login" }) {
     const [mensagemSucesso, setMensagemSucesso] = useState("");
     const [carregando, setCarregando] = useState(false);
 
-    useEffect(() => {
-        if (aberto) {
-            setModo(modoInicial);
-            limparFormulario();
-        }
-    }, [aberto, modoInicial]);
-
     const limparFormulario = () => {
         setNome("");
         setEmail("");
@@ -47,6 +40,13 @@ function ModalAuth({ aberto, aoFechar, modoInicial = "login" }) {
         setMostrarConfirmarSenha(false);
         setMensagemSucesso("");
     };
+    
+    useEffect(() => {
+        if (aberto) {
+            setModo(modoInicial);
+            limparFormulario();
+        }
+    }, [aberto, modoInicial]);
 
     const validarEmail = (valor) => {
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor);

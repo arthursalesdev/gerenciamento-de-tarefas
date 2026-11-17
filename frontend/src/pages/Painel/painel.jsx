@@ -16,7 +16,7 @@ import { useMembros } from "../../context/membrosContext";
 
 function Painel() {
     const { areaAtual, areaPessoalAtiva } = useArea();
-    const { usuarioLogado, usuarios } = useAuth();
+    const { usuarioLogado } = useAuth();
     const { tarefas } = useTarefas();
     const { equipes } = useEquipes();
     const { buscarMembrosDaEquipe } = useMembros();

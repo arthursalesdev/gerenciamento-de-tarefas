@@ -43,15 +43,12 @@ class EquipeService {
     async criar(dados, usuarioId) {
         const dto = new CriarEquipeDTO(dados);
 
-        const equipe = await equipeRepository.criar({
-            nome: dto.nome,
-            criadorId: usuarioId
-        });
-
-        await membroEquipeRepository.adicionar(
-            usuarioId,
-            equipe.id,
-            "DONO"
+        const equipe = await equipeRepository.criarComDono(
+            {
+                nome: dto.nome,
+                criadorId: usuarioId
+            },
+            usuarioId
         );
 
         return equipeMapper.paraResponseDTO(equipe);

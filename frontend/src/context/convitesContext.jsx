@@ -53,7 +53,7 @@ export function ConvitesProvider({ children }) {
         };
     }, [usuarioLogado?.id]);
 
-    const enviarConvite = async ({ equipeId, convidadoId, convidadorId, cargoId = "membro" }) => {
+    const enviarConvite = async ({ equipeId, convidadoId, cargoId = "membro" }) => {
         try {
             const resposta = await api.post("/convites-equipes", { equipeId: Number(equipeId), convidadoId: Number(convidadoId), cargo: cargoId.toUpperCase() });
 

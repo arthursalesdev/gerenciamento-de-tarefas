@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useState, useCallback, useRef } from "react";
 
 import api from "../services/api";
 import { useAuth } from "./authContext";
@@ -12,7 +12,9 @@ export function MembrosProvider({ children }) {
     const usuarioAtualRef = useRef(usuarioLogado?.id);
     const requisicaoMembrosRef = useRef(0);
 
-    usuarioAtualRef.current = usuarioLogado?.id;
+    useLayoutEffect(() => {
+        usuarioAtualRef.current = usuarioLogado?.id;
+    }, [usuarioLogado?.id]);
 
     const [membrosApi, setMembrosApi] = useState([]);
     const [carregandoMembros, setCarregandoMembros] = useState(false);
@@ -155,7 +157,7 @@ export function MembrosProvider({ children }) {
                 setCarregandoMembros(false);
             }
         }
-    }, [usuarioLogado?.id, equipesApi]);
+    }, [usuarioLogado, equipesApi]);
 
     useEffect(() => {
         requisicaoMembrosRef.current += 1;

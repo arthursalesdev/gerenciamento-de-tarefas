@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useRef } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useState, useRef } from "react";
 
 import api from "../services/api";
 import { useAuth } from "./authContext";
@@ -37,7 +37,9 @@ export function TarefasProvider({ children }) {
     const requisicaoPessoalRef = useRef(0);
     const requisicaoEquipesRef = useRef(0);
 
-    usuarioAtualRef.current = usuarioLogado?.id;
+    useLayoutEffect(() => {
+        usuarioAtualRef.current = usuarioLogado?.id;
+    }, [usuarioLogado?.id]);
 
     const [tarefasApi, setTarefasApi] = useState([]);
     const [tarefasEquipesApi, setTarefasEquipesApi] = useState([]);
@@ -186,8 +188,11 @@ export function TarefasProvider({ children }) {
         const ehTarefaEquipe = dados.equipeId !== null && dados.equipeId !== undefined;
 
         const payload = {
-            titulo: dados.titulo, descricao: dados.descricao,
-            dataLimite: dados.dataLimite || null, prioridade: dados.prioridade || "MEDIA"
+            titulo: dados.titulo,
+            descricao: dados.descricao,
+            status: statusParaBackend[dados.status || "pendente"],
+            dataLimite: dados.dataLimite || null,
+            prioridade: dados.prioridade || "MEDIA"
         };
 
         if (ehTarefaEquipe) {
@@ -201,14 +206,9 @@ export function TarefasProvider({ children }) {
         }
 
         const resposta = await api.post("/tarefas", payload);
-        let tarefaCriada = resposta.data;
+        const tarefaCriada = resposta.data;
 
         if (!ehTarefaEquipe) {
-            if (dados.status && dados.status !== "pendente") {
-                const atualizacao = await api.put(`/tarefas/${tarefaCriada.id}`, { status: statusParaBackend[dados.status] });
-                tarefaCriada = atualizacao.data;
-            }
-
             const tarefaNormalizada = normalizarTarefa(tarefaCriada);
 
             setTarefasApi((atuais) => [
@@ -267,21 +267,35 @@ export function TarefasProvider({ children }) {
             }
 
             const alterouResponsavel =
-                Object.prototype.hasOwnProperty.call(dadosAtualizados, "responsavelId") &&
+                Object.prototype.hasOwnProperty.call(
+                    dadosAtualizados,
+                    "responsavelId"
+                ) &&
                 String(dadosAtualizados.responsavelId ?? "") !==
                 String(tarefaEquipe.responsavelId ?? "");
 
-            const resposta = await api.put(`/equipes/${tarefaEquipe.equipeId}/tarefas/${id}`, payload);
+            const resposta = await api.put(
+                `/equipes/${tarefaEquipe.equipeId}/tarefas/${id}`,
+                payload
+            );
 
-            let atualizada = normalizarTarefa(resposta.data);
+            const tarefaAtualizada = normalizarTarefa(resposta.data);
 
-            setTarefasEquipesApi((atuais) => atuais.map((tarefa) => mesmaTarefa(tarefa) ? atualizada : tarefa));
+            setTarefasEquipesApi((atuais) =>
+                atuais.map((tarefa) =>
+                    mesmaTarefa(tarefa) ? tarefaAtualizada : tarefa
+                )
+            );
 
             if (alterouResponsavel) {
-                atualizada = await atualizarResponsavel(id, tarefaEquipe.equipeId, dadosAtualizados.responsavelId);
+                return await atualizarResponsavel(
+                    id,
+                    tarefaEquipe.equipeId,
+                    dadosAtualizados.responsavelId
+                );
             }
 
-            return atualizada;
+            return tarefaAtualizada;
         }
 
         const tarefaPessoal = tarefasApi.find(mesmaTarefa);
@@ -291,11 +305,15 @@ export function TarefasProvider({ children }) {
         }
 
         const resposta = await api.put(`/tarefas/${id}`, payload);
-        const atualizada = normalizarTarefa(resposta.data);
+        const tarefaAtualizada = normalizarTarefa(resposta.data);
 
-        setTarefasApi((atuais) => atuais.map((tarefa) => mesmaTarefa(tarefa) ? atualizada : tarefa));
+        setTarefasApi((atuais) =>
+            atuais.map((tarefa) =>
+                mesmaTarefa(tarefa) ? tarefaAtualizada : tarefa
+            )
+        );
 
-        return atualizada;
+        return tarefaAtualizada;
     };
 
     const atualizarResponsavel = async (tarefaId, equipeId, responsavelId) => {
@@ -363,9 +381,7 @@ export function useTarefas() {
     const context = useContext(TarefasContext);
 
     if (!context) {
-        throw new Error(
-            "useTarefas deve ser usado dentro de um TarefasProvider"
-        );
+        throw new Error("useTarefas deve ser usado dentro de um TarefasProvider");
     }
 
     return context;

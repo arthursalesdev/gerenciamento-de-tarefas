@@ -36,6 +36,14 @@ export class CriarTarefaDTO {
         this.descricao = dados.descricao?.trim();
         this.prioridade = dados.prioridade;
 
+        const statusPermitidos = ["PENDENTE", "EM_ANDAMENTO", "CONCLUIDA"];
+
+        if (dados.status !== undefined && !statusPermitidos.includes(dados.status)) {
+            throw new AppError("Status deve ser PENDENTE, EM_ANDAMENTO ou CONCLUIDA", 400);
+        }
+
+        this.status = dados.status ?? "PENDENTE";
+
         if (dados.equipeId !== undefined && dados.equipeId !== null) {
             if (!Number.isInteger(dados.equipeId) || dados.equipeId <= 0) {
                 throw new AppError("ID da equipe inválido", 400);

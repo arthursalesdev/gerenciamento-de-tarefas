@@ -1,9 +1,12 @@
 import tarefaRepository from "../repositories/tarefaRepository.js";
 import logTarefaRepository from "../repositories/logTarefaRepository.js";
 import membroEquipeRepository from "../repositories/membroEquipeRepository.js";
+
 import { CriarTarefaDTO, AtualizarTarefaDTO } from "../dtos/tarefaDTO.js";
 import TarefaMapper from "../mappers/tarefaMapper.js";
+
 import AppError from "../errors/AppError.js";
+import { db } from "../database/connection.js";
 
 class TarefaService {
     async listarTodas(usuarioId) {
@@ -81,14 +84,15 @@ class TarefaService {
 
         const dto = new AtualizarTarefaDTO(dados);
 
-        const tarefaAtualizada = await tarefaRepository.atualizarNaEquipe(tarefaId, equipeId, dto);
+        const tarefaAtualizada = await db.transaction(async (tx) => {
+            const tarefa = await tarefaRepository.atualizarNaEquipe(tarefaId, equipeId, dto, tx);
 
-        if (!tarefaAtualizada) {
-            throw new AppError("Tarefa não encontrada", 404);
-        }
+            if (!tarefa) {
+                throw new AppError("Tarefa não encontrada", 404);
+            }
 
-        await logTarefaRepository.criar({
-            tarefaId, usuarioId, acao: "ATUALIZADA", detalhes: "Tarefa de equipe atualizada"
+            await logTarefaRepository.criar({ tarefaId, usuarioId, acao: "ATUALIZADA", detalhes: "Tarefa de equipe atualizada" }, tx);
+            return tarefa;
         });
 
         return TarefaMapper.paraResponseDTO(tarefaAtualizada);
@@ -98,12 +102,10 @@ class TarefaService {
         const dto = new CriarTarefaDTO(dados);
 
         if (dto.equipeId === null) {
-            const tarefa = await tarefaRepository.criar({
-                ...dto, usuarioId, responsavelId: usuarioId
-            });
-
-            await logTarefaRepository.criar({
-                tarefaId: tarefa.id, usuarioId, acao: "CRIADA", detalhes: "Tarefa individual criada"
+            const tarefa = await db.transaction(async (tx) => {
+                const tarefaCriada = await tarefaRepository.criar({ ...dto, usuarioId, responsavelId: usuarioId }, tx);
+                await logTarefaRepository.criar({ tarefaId: tarefaCriada.id, usuarioId, acao: "CRIADA", detalhes: "Tarefa individual criada" }, tx);
+                return tarefaCriada;
             });
 
             return TarefaMapper.paraResponseDTO(tarefa);
@@ -131,12 +133,10 @@ class TarefaService {
             }
         }
 
-        const tarefa = await tarefaRepository.criar({
-            ...dto, usuarioId
-        });
-
-        await logTarefaRepository.criar({
-            tarefaId: tarefa.id, usuarioId, acao: "CRIADA", detalhes: "Tarefa de equipe criada"
+        const tarefa = await db.transaction(async (tx) => {
+            const tarefaCriada = await tarefaRepository.criar({ ...dto, usuarioId }, tx);
+            await logTarefaRepository.criar({ tarefaId: tarefaCriada.id, usuarioId, acao: "CRIADA", detalhes: "Tarefa de equipe criada" }, tx);
+            return tarefaCriada;
         });
 
         return TarefaMapper.paraResponseDTO(tarefa);
@@ -153,14 +153,24 @@ class TarefaService {
 
     async atualizar(id, dados, usuarioId) {
         const tarefaExistente = await tarefaRepository.buscarPorId(id, usuarioId);
+
         if (!tarefaExistente) {
             throw new AppError("Tarefa não encontrada", 404);
         }
 
         const dto = new AtualizarTarefaDTO(dados);
-        const tarefaAtualizada = await tarefaRepository.atualizar(id, usuarioId, dto);
 
-        await logTarefaRepository.criar({ tarefaId: id, usuarioId, acao: "ATUALIZADA", detalhes: "Tarefa atualizada" });
+        const tarefaAtualizada = await db.transaction(async (tx) => {
+            const tarefa = await tarefaRepository.atualizar(id, usuarioId, dto, tx);
+
+            if (!tarefa) {
+                throw new AppError("Tarefa não encontrada", 404);
+            }
+
+            await logTarefaRepository.criar({ tarefaId: id, usuarioId, acao: "ATUALIZADA", detalhes: "Tarefa atualizada" }, tx);
+            return tarefa;
+        });
+
         return TarefaMapper.paraResponseDTO(tarefaAtualizada);
     }
 
@@ -207,27 +217,51 @@ class TarefaService {
             }
         }
 
-        const tarefaAtualizada = await tarefaRepository.atualizarNaEquipe(tarefaId, equipeId, { responsavelId });
+        const tarefaAtualizada = await db.transaction(async (tx) => {
+            const tarefa = await tarefaRepository.atualizarNaEquipe(tarefaId, equipeId, { responsavelId }, tx);
 
-        if (!tarefaAtualizada) {
-            throw new AppError("Tarefa não encontrada", 404);
-        }
+            if (!tarefa) {
+                throw new AppError("Tarefa não encontrada", 404);
+            }
 
-        await logTarefaRepository.criar({
-            tarefaId, usuarioId, acao: "ATUALIZADA", detalhes: "Responsável da tarefa de equipe atualizado"
+            await logTarefaRepository.criar({ tarefaId, usuarioId, acao: "ATUALIZADA", detalhes: "Responsável da tarefa de equipe atualizado" }, tx);
+            return tarefa;
         });
 
         return TarefaMapper.paraResponseDTO(tarefaAtualizada);
     }
 
     async deletar(id, usuarioId) {
-        const tarefa = await tarefaRepository.buscarPorId(id, usuarioId);
-        if (!tarefa) {
+        const tarefaExistente = await tarefaRepository.buscarPorId(
+            id,
+            usuarioId
+        );
+
+        if (!tarefaExistente) {
             throw new AppError("Tarefa não encontrada", 404);
         }
 
-        await logTarefaRepository.criar({ tarefaId: id, usuarioId, acao: "EXCLUIDA", detalhes: "Tarefa excluída" });
-        await tarefaRepository.deletar(id, usuarioId);
+        await db.transaction(async (tx) => {
+            const tarefaExcluida = await tarefaRepository.deletar(
+                id,
+                usuarioId,
+                tx
+            );
+
+            if (!tarefaExcluida) {
+                throw new AppError("Tarefa não encontrada", 404);
+            }
+
+            await logTarefaRepository.criar(
+                {
+                    tarefaId: id,
+                    usuarioId,
+                    acao: "EXCLUIDA",
+                    detalhes: "Tarefa excluída"
+                },
+                tx
+            );
+        });
     }
 
     async deletarNaEquipe(tarefaId, equipeId, usuarioId) {
@@ -255,14 +289,26 @@ class TarefaService {
             throw new AppError("Somente DONO ou LIDER podem excluir tarefas da equipe", 403);
         }
 
-        const tarefaExcluida = await tarefaRepository.deletarNaEquipe(tarefaId, equipeId);
+        await db.transaction(async (tx) => {
+            const tarefaExcluida = await tarefaRepository.deletarNaEquipe(
+                tarefaId,
+                equipeId,
+                tx
+            );
 
-        if (!tarefaExcluida) {
-            throw new AppError("Tarefa não encontrada", 404);
-        }
+            if (!tarefaExcluida) {
+                throw new AppError("Tarefa não encontrada", 404);
+            }
 
-        await logTarefaRepository.criar({
-            tarefaId, usuarioId, acao: "EXCLUIDA", detalhes: "Tarefa de equipe excluída"
+            await logTarefaRepository.criar(
+                {
+                    tarefaId,
+                    usuarioId,
+                    acao: "EXCLUIDA",
+                    detalhes: "Tarefa de equipe excluída"
+                },
+                tx
+            );
         });
     }
 
