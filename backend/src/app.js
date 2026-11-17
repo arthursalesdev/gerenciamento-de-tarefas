@@ -14,8 +14,15 @@ import swaggerSpec from "./docs/swagger.js";
 
 const app = express();
 
+const origensPermitidas = (
+    process.env.CORS_ORIGINS || "http://localhost:5173"
+)
+    .split(",")
+    .map((origem) => origem.trim())
+    .filter(Boolean);
+
 app.use(cors({
-    origin: "http://localhost:5173",
+    origin: origensPermitidas,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"]
 }));
