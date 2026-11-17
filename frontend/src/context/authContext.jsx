@@ -70,45 +70,6 @@ export function AuthProvider({ children }) {
         };
     }, [tentativaRecuperacao]);
 
-    useEffect(() => {
-        let ativo = true;
-
-        async function recuperarSessao() {
-            const token = localStorage.getItem(CHAVE_TOKEN);
-
-            if (!token) {
-                if (ativo) setVerificandoSessao(false);
-                return;
-            }
-
-            try {
-                const resposta = await api.get("/auth/me");
-
-                if (ativo) {
-                    setUsuarioLogado(resposta.data);
-                }
-            } catch (erro) {
-                if (erro.response?.status === 401 || erro.response?.status === 403) {
-                    localStorage.removeItem(CHAVE_TOKEN);
-                }
-
-                if (ativo) {
-                    setUsuarioLogado(null);
-                }
-            } finally {
-                if (ativo) {
-                    setVerificandoSessao(false);
-                }
-            }
-        }
-
-        recuperarSessao();
-
-        return () => {
-            ativo = false;
-        };
-    }, []);
-
     const cadastro = async ({ nome, nomeUsuario, email, senha }) => {
         try {
             const resposta = await api.post("/auth/cadastro", {
